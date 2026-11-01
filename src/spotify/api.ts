@@ -58,6 +58,23 @@ let cooldownUntil = 0
 
 export class SpotifyRateLimitError extends Error {}
 
+// ---------- יומן בקשות (לאבחון, מוצג במסך הבדיקות) ----------
+export interface RequestLogEntry {
+  at: number
+  method: string
+  path: string
+  status: number | 'error'
+  retryAfter?: string | null
+}
+const requestLog: RequestLogEntry[] = []
+export function getRequestLog(): RequestLogEntry[] {
+  return [...requestLog]
+}
+function logRequest(e: RequestLogEntry) {
+  requestLog.push(e)
+  if (requestLog.length > 300) requestLog.shift()
+}
+
 // מי שרוצה לדעת שאנחנו ממתינים לספוטיפיי (כדי להציג "ממתין…" במקום מסך תקוע)
 type WaitListener = (seconds: number) => void
 const waitListeners = new Set<WaitListener>()
@@ -109,11 +126,20 @@ async function spotifyFetchInner<T>(path: string, init: RequestInit, attempt: nu
   const token = await getAccessToken()
   if (!token) throw new SpotifyAuthError('צריך להתחבר לספוטיפיי')
   await paced()
-  const res = await fetch(path.startsWith('http') ? path : `${BASE}${path}`, {
-    signal: AbortSignal.timeout(15000), // שלא ייתקע לנצח
-    ...init,
-    headers: { ...(init.headers ?? {}), Authorization: `Bearer ${token}` },
-  })
+  const method = init.method ?? 'GET'
+  const shortPath = (path.startsWith('http') ? new URL(path).pathname.replace('/v1', '') : path).split('?')[0]
+  let res: Response
+  try {
+    res = await fetch(path.startsWith('http') ? path : `${BASE}${path}`, {
+      signal: AbortSignal.timeout(15000), // שלא ייתקע לנצח
+      ...init,
+      headers: { ...(init.headers ?? {}), Authorization: `Bearer ${token}` },
+    })
+  } catch (e) {
+    logRequest({ at: Date.now(), method, path: shortPath, status: 'error' })
+    throw e
+  }
+  logRequest({ at: Date.now(), method, path: shortPath, status: res.status, retryAfter: res.status === 429 ? res.headers.get('Retry-After') : undefined })
   if (res.status === 401 && attempt === 0) {
     const fresh = await getAccessToken(true)
     if (!fresh) {

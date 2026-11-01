@@ -7,6 +7,7 @@ import type { Song } from '../songs/types'
 import { usePlayback } from '../playback/usePlayback'
 import OutputPicker from '../components/OutputPicker'
 import PlayerControls from '../components/PlayerControls'
+import RequestLog from '../components/RequestLog'
 import { diagnoseDevice } from '../playback/controller'
 
 export default function DevTest({ onLogout }: { onLogout: () => void }) {
@@ -72,6 +73,7 @@ export default function DevTest({ onLogout }: { onLogout: () => void }) {
         </button>
       </header>
       <p className="text-violet-200">{me ? `מחובר כ: ${me}` : 'בודק התחברות…'}</p>
+      <RequestLog />
 
       <section className="space-y-3 rounded-2xl bg-white/5 p-4">
         <h2 className="text-lg font-bold">1. שיר אקראי מספוטיפיי</h2>
