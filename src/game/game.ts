@@ -9,6 +9,8 @@
 import type { Song } from '../songs/types'
 import type { SourceConfig } from '../songs/sources'
 import { isPlacementCorrect } from './rules'
+import { makeEvent, type GameEvent } from './events'
+import type { GameMode } from './modes'
 
 export const START_TOKENS = 2
 export const MAX_TOKENS = 5
@@ -23,6 +25,18 @@ export interface Settings {
   randomStart: boolean
   /** האם משחקים עם אסימונים (ניחוש, דילוג, אתגר, קנייה) */
   guessBonus: boolean
+  /** מצב משחק (ברירת מחדל: קלאסי) */
+  mode?: GameMode
+  /** סולו: שם השחקן */
+  soloName?: string
+  /** סולו: שניות למיקום כל שיר */
+  soloSeconds?: number
+  /** אקסטרים: שמות שתי הקבוצות */
+  teams?: [string, string]
+  /** הגבלת זמן השמעה בשניות (0 / חסר = בלי הגבלה) */
+  playLimit?: number
+  /** האם מציגים שדה ניחוש שנה מדויקת */
+  exactYear?: boolean
 }
 
 export interface Player {
@@ -52,7 +66,12 @@ export interface TurnResult {
 }
 
 export interface GameState {
+  mode?: 'classic'
   settings: Settings
+  /** יומן אירועים לסטטיסטיקות */
+  events?: GameEvent[]
+  /** מתי התחיל התור הנוכחי (לחישוב זמן) */
+  turnStartedAt?: number | null
   players: Player[]
   current: number
   phase: Phase
@@ -66,12 +85,12 @@ export interface GameState {
 }
 
 export type Action =
-  | { type: 'beginTurn'; song: Song }
+  | { type: 'beginTurn'; song: Song; at?: number }
   | { type: 'select'; slot: number }
   | { type: 'lockIn' }
   | { type: 'challenger'; player: number | null }
   | { type: 'challengeSlot'; slot: number }
-  | { type: 'reveal' }
+  | { type: 'reveal'; at?: number }
   | { type: 'guess'; correct: boolean }
   | { type: 'skip'; song: Song }
   | { type: 'buy' }
@@ -85,11 +104,14 @@ export function newGame(settings: Settings, starters: Song[]): GameState {
     settings,
     players: settings.players.map((name, i) => ({ name, timeline: [starters[i]], tokens })),
     current: 0,
+    mode: 'classic',
     phase: 'pass',
     song: null,
     slot: null,
     challenge: null,
     result: null,
+    events: [],
+    turnStartedAt: null,
     usedIds: starters.map((s) => s.id),
     winner: null,
     turn: 1,
@@ -144,6 +166,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         slot: null,
         challenge: null,
         result: null,
+        turnStartedAt: action.at ?? null,
         usedIds: [...state.usedIds, action.song.id],
       }
 
@@ -190,10 +213,20 @@ export function gameReducer(state: GameState, action: Action): GameState {
         challenge = { player: ch.player, correct: chCorrect, wonCard }
       }
 
+      const events: GameEvent[] = [
+        makeEvent({ turn: state.turn, actor: player.name, actorIndex: state.current, song, years: ys, slot, correct, how: 'placed', startedAt: state.turnStartedAt, at: action.at }),
+      ]
+      if (ch && ch.slot !== null && challenge) {
+        events.push(
+          makeEvent({ turn: state.turn, actor: state.players[ch.player].name, actorIndex: ch.player, song, years: ys, slot: ch.slot, correct: challenge.correct, how: 'challenge' }),
+        )
+      }
+
       const next: GameState = {
         ...state,
         phase: 'reveal',
         players,
+        events: [...(state.events ?? []), ...events],
         result: { how: 'placed', correct, guessed: tokensOn ? null : false, challenge },
       }
       return { ...next, winner: checkWinner(next) }
@@ -233,6 +266,10 @@ export function gameReducer(state: GameState, action: Action): GameState {
           return { ...paid, timeline: insertAt(paid.timeline, autoSlot(paid, song.year), song) }
         }),
         result: { how: 'bought', correct: true, guessed: null, challenge: null },
+        events: [
+          ...(state.events ?? []),
+          makeEvent({ turn: state.turn, actor: player.name, actorIndex: state.current, song, years: yearsOf(player), slot: null, correct: true, how: 'bought' }),
+        ],
       }
       return { ...next, winner: checkWinner(next) }
     }
@@ -264,6 +301,8 @@ export function gameReducer(state: GameState, action: Action): GameState {
         challenge: null,
         result: null,
         winner: null,
+        // התור בוטל – גם האירועים שלו נמחקים
+        events: (state.events ?? []).filter((e) => !(e.turn === state.turn && e.songId === bad.id)),
         usedIds: [...state.usedIds, action.song.id],
       }
     }

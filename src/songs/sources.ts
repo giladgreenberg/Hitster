@@ -4,10 +4,11 @@ import { getPlaylistTracks, searchTracks, type SpotifyTrack } from '../spotify/a
 import { getBlacklist } from './blacklist'
 import { resolveSong } from './resolveSong'
 import type { Song } from './types'
+import type { Difficulty } from '../game/modes'
 
 export type SourceConfig =
   | { kind: 'playlists'; playlistIds: string[] }
-  | { kind: 'random'; fromYear: number; toYear: number; genres: string[] }
+  | { kind: 'random'; fromYear: number; toYear: number; genres: string[]; difficulty?: Difficulty }
 
 export interface SourceLog {
   (msg: string): void

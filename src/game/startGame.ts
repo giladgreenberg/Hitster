@@ -1,17 +1,30 @@
 import { createSongQueue, type SongQueue } from '../songs/queue'
 import type { Song } from '../songs/types'
 import { newGame, type GameState, type Settings } from './game'
+import { newSoloGame, type SoloState } from './solo'
 
-/** מכין משחק חדש: טוען שיר פתיחה לכל שחקן (והתור ממשיך לטעון ברקע) */
-export async function startGame(settings: Settings, onProgress: (msg: string) => void): Promise<{ game: GameState; queue: SongQueue }> {
-  const n = settings.players.length
+export type AnyGame = GameState | SoloState
+
+export const isSolo = (g: AnyGame): g is SoloState => g.mode === 'solo'
+
+/** כמה שירי פתיחה צריך לכל מצב */
+function startersNeeded(settings: Settings): number {
+  if (settings.mode === 'solo') return 1
+  if (settings.mode === 'extreme') return 1 // ציר משותף אחד
+  return settings.players.length
+}
+
+/** מכין משחק חדש: טוען שירי פתיחה (והתור ממשיך לטעון ברקע) */
+export async function startGame(settings: Settings, onProgress: (msg: string) => void): Promise<{ game: AnyGame; queue: SongQueue }> {
+  const n = startersNeeded(settings)
   const queue = createSongQueue(settings.source, [], Math.max(4, n + 2))
   const starters: Song[] = []
   for (let i = 0; i < n; i++) {
-    onProgress(`מכין שירי פתיחה ${i + 1}/${n}…`)
+    onProgress(n > 1 ? `מכין שירי פתיחה ${i + 1}/${n}…` : 'מכין את השיר הראשון…')
     const s = await queue.take()
     if (!s) throw new Error('לא נמצאו מספיק שירים במקור שנבחר')
     starters.push(s)
   }
-  return { game: newGame(settings, starters), queue }
+  if (settings.mode === 'solo') return { game: newSoloGame(settings, starters[0]), queue }
+  return { game: newGame({ ...settings, mode: 'classic' }, starters), queue }
 }

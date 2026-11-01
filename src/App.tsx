@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { handleCallback, isLoggedIn, logout } from './spotify/auth'
 import { usePlayback } from './playback/usePlayback'
-import type { GameState } from './game/game'
 import type { SongQueue } from './songs/queue'
 import { loadGame, loadSettings, saveGame } from './game/storage'
-import { startGame } from './game/startGame'
+import { isSolo, startGame, type AnyGame } from './game/startGame'
+import SoloGame from './screens/SoloGame'
+import HighScores from './screens/HighScores'
 import Login from './screens/Login'
 import Setup from './screens/Setup'
 import Game from './screens/Game'
@@ -14,8 +15,9 @@ type View =
   | { name: 'loading'; msg?: string }
   | { name: 'login' }
   | { name: 'setup' }
-  | { name: 'game'; game: GameState; queue: SongQueue | null; key: number }
+  | { name: 'game'; game: AnyGame; queue: SongQueue | null; key: number }
   | { name: 'debug' }
+  | { name: 'highscores' }
 
 export default function App() {
   const [view, setView] = useState<View>({ name: 'loading' })
@@ -77,10 +79,28 @@ export default function App() {
           playback={playback}
           onStart={(game, queue) => setView({ name: 'game', game, queue, key: Date.now() })}
           onDebug={() => setView({ name: 'debug' })}
+          onHighScores={() => setView({ name: 'highscores' })}
           onLogout={doLogout}
         />
       )
+    case 'highscores':
+      return <HighScores onBack={() => setView({ name: 'setup' })} />
     case 'game':
+      if (isSolo(view.game)) {
+        return (
+          <SoloGame
+            key={view.key}
+            initial={view.game}
+            initialQueue={view.queue}
+            playback={playback}
+            onNewGame={() => {
+              saveGame(null)
+              setView({ name: 'setup' })
+            }}
+            onRematch={rematch}
+          />
+        )
+      }
       return (
         <Game
           key={view.key}

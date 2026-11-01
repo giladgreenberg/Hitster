@@ -260,4 +260,13 @@ describe('gameReducer', () => {
       expect(g.players.every((p) => p.tokens >= 0 && p.tokens <= MAX_TOKENS)).toBe(true)
     }
   })
+
+  it('יומן אירועים: כל מיקום ואתגר נרשמים, ו"השנה שגויה" מוחק אותם', () => {
+    let s = challengeTurn(1970, 1, 0)
+    expect(s.events).toHaveLength(2)
+    expect(s.events![0]).toMatchObject({ actor: 'דנה', how: 'placed', correct: false, before: 1980, after: null })
+    expect(s.events![1]).toMatchObject({ actor: 'יוסי', how: 'challenge', correct: true })
+    s = gameReducer(s, { type: 'wrongYear', song: song(1985) })
+    expect(s.events).toHaveLength(0)
+  })
 })

@@ -24,3 +24,16 @@ body {
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
+
+/* קונפטי */
+.confetti-piece { position: absolute; top: -20px; opacity: 0; animation-name: confetti-fall; animation-timing-function: cubic-bezier(.3,.6,.5,1); animation-fill-mode: forwards; }
+@keyframes confetti-fall {
+  0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(var(--rot)); }
+  100% { opacity: 0.9; transform: translate3d(var(--drift), 105vh, 0) rotate(calc(var(--rot) + 720deg)); }
+}
+
+/* כבוד להעדפת "פחות תנועה" */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  .confetti-piece { display: none; }
+}

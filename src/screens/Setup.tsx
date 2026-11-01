@@ -3,8 +3,10 @@ import { useEffect, useState } from 'react'
 import { getMyPlaylists, playlistTotal, type SpotifyPlaylist } from '../spotify/api'
 import { GENRES } from '../songs/genres'
 import type { SongQueue } from '../songs/queue'
-import type { GameState, Settings } from '../game/game'
-import { startGame } from '../game/startGame'
+import type { Settings } from '../game/game'
+import { startGame, type AnyGame } from '../game/startGame'
+import { DEFAULT_SOLO_SECONDS, SOLO_SECONDS_OPTIONS, type GameMode } from '../game/modes'
+import ModePicker from '../components/ModePicker'
 import { loadSettings, saveSettings } from '../game/storage'
 import OutputPicker from '../components/OutputPicker'
 import type { Playback } from '../playback/usePlayback'
@@ -22,14 +24,18 @@ const defaults: Settings = {
 
 interface Props {
   playback: Playback
-  onStart: (game: GameState, queue: SongQueue) => void
+  onStart: (game: AnyGame, queue: SongQueue) => void
   onDebug: () => void
+  onHighScores: () => void
   onLogout: () => void
 }
 
-export default function Setup({ playback, onStart, onDebug, onLogout }: Props) {
+export default function Setup({ playback, onStart, onDebug, onHighScores, onLogout }: Props) {
   const saved = loadSettings()
+  const [mode, setMode] = useState<GameMode>(saved?.mode ?? 'classic')
   const [players, setPlayers] = useState<string[]>(saved?.players ?? defaults.players)
+  const [soloName, setSoloName] = useState<string>(saved?.soloName ?? '')
+  const [soloSeconds, setSoloSeconds] = useState<number>(saved?.soloSeconds ?? DEFAULT_SOLO_SECONDS)
   const [kind, setKind] = useState<'random' | 'playlists'>(saved?.source.kind ?? 'random')
   const [fromYear, setFrom] = useState(saved?.source.kind === 'random' ? saved.source.fromYear : 1970)
   const [toYear, setTo] = useState(saved?.source.kind === 'random' ? saved.source.toYear : thisYear)
@@ -59,6 +65,10 @@ export default function Setup({ playback, onStart, onDebug, onLogout }: Props) {
 
   const start = async () => {
     const settings: Settings = {
+      ...(saved ?? {}),
+      mode,
+      soloSeconds,
+      soloName: soloName.trim() || 'שחקן',
       players: names,
       source: kind === 'random' ? { kind, fromYear, toYear, genres } : { kind, playlistIds },
       targetSongs: Math.max(2, Math.min(50, target)),
@@ -90,6 +100,37 @@ export default function Setup({ playback, onStart, onDebug, onLogout }: Props) {
       </header>
 
       <section className={section}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold">מצב משחק</h2>
+          <button onClick={onHighScores} className="rounded-lg bg-white/10 px-3 py-1 text-sm">
+            🏆 שיאי סולו
+          </button>
+        </div>
+        <ModePicker value={mode} onChange={setMode} disabled={['extreme']} />
+      </section>
+
+      {mode === 'solo' && (
+        <section className={section}>
+          <h2 className="text-xl font-bold">שחקן</h2>
+          <input
+            value={soloName}
+            onChange={(e) => setSoloName(e.target.value)}
+            placeholder="השם שלך (לטבלת השיאים)"
+            className="w-full rounded-xl bg-white/10 p-3 text-lg outline-none focus:ring-2 focus:ring-green-400"
+          />
+          <div className="text-sm text-violet-300">זמן למקם כל שיר</div>
+          <div className="grid grid-cols-4 gap-2">
+            {SOLO_SECONDS_OPTIONS.map((s) => (
+              <button key={s} onClick={() => setSoloSeconds(s)} className={`rounded-xl py-3 text-lg ${soloSeconds === s ? 'bg-green-500 font-bold text-black' : 'bg-white/10'}`}>
+                {s} ש'
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {mode === 'classic' && (
+      <section className={section}>
         <h2 className="text-xl font-bold">שחקנים</h2>
         {players.map((p, i) => (
           <div key={i} className="flex gap-2">
@@ -112,6 +153,7 @@ export default function Setup({ playback, onStart, onDebug, onLogout }: Props) {
           </button>
         )}
       </section>
+      )}
 
       <section className={section}>
         <h2 className="text-xl font-bold">מאיפה השירים?</h2>
@@ -183,6 +225,7 @@ export default function Setup({ playback, onStart, onDebug, onLogout }: Props) {
 
       <section className={section}>
         <h2 className="text-xl font-bold">חוקים</h2>
+        {mode === 'classic' && (
         <label className="flex items-center justify-between text-lg">
           <span>שירים לניצחון</span>
           <div className="flex items-center gap-2">
@@ -195,6 +238,8 @@ export default function Setup({ playback, onStart, onDebug, onLogout }: Props) {
             </button>
           </div>
         </label>
+        )}
+        {mode === 'classic' && (
         <label className="flex items-center justify-between gap-3 text-lg">
           <span>
             משחק עם אסימונים 🪙
@@ -202,6 +247,7 @@ export default function Setup({ playback, onStart, onDebug, onLogout }: Props) {
           </span>
           <input type="checkbox" checked={guessBonus} onChange={(e) => setGuessBonus(e.target.checked)} className="h-6 w-6 shrink-0" />
         </label>
+        )}
         <label className="flex items-center justify-between gap-3 text-lg">
           <span>
             התחלה מנקודה אקראית בשיר

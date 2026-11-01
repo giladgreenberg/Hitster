@@ -1,10 +1,11 @@
 // שמירת מצב המשחק וההגדרות האחרונות ב-localStorage, כדי שרענון לא ימחק את המשחק.
-import type { GameState, Settings } from './game'
+import type { Settings } from './game'
+import type { AnyGame } from './startGame'
 
 const GAME_KEY = 'hitster.game.v1'
 const SETTINGS_KEY = 'hitster.settings.v1'
 
-export function saveGame(state: GameState | null) {
+export function saveGame(state: AnyGame | null) {
   try {
     if (state) localStorage.setItem(GAME_KEY, JSON.stringify(state))
     else localStorage.removeItem(GAME_KEY)
@@ -13,10 +14,10 @@ export function saveGame(state: GameState | null) {
   }
 }
 
-export function loadGame(): GameState | null {
+export function loadGame(): AnyGame | null {
   try {
     const raw = localStorage.getItem(GAME_KEY)
-    return raw ? (JSON.parse(raw) as GameState) : null
+    return raw ? (JSON.parse(raw) as AnyGame) : null
   } catch {
     return null
   }
