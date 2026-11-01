@@ -119,6 +119,8 @@ export default function DevTest({ onLogout }: { onLogout: () => void }) {
             <div className="text-xs text-violet-300">
               מקור השנה: {song.yearSource === 'musicbrainz' ? 'MusicBrainz' : 'ספוטיפיי'} · שנה בספוטיפיי: {song.spotifyYear ?? '—'}
               <br />
+              MusicBrainz: {song.mbStatus}
+              <br />
               אלבום: {song.album} · ISRC: <span dir="ltr">{song.isrc ?? '—'}</span>
             </div>
           </div>

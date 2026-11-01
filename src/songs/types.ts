@@ -12,4 +12,6 @@ export interface Song {
   /** השנה שבה משתמשים במשחק */
   year: number
   yearSource: 'musicbrainz' | 'spotify'
+  /** מה MusicBrainz ענה (לאבחון) */
+  mbStatus: string
 }

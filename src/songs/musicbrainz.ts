@@ -61,35 +61,44 @@ export function earliestYearFromIsrcResponse(json: MbIsrcResponse): number | nul
   return best
 }
 
+export interface MbLookup {
+  year: number | null
+  /** תיאור קצר של מה שקרה – להצגה במסך הבדיקה */
+  status: string
+}
+
 /**
- * מחזיר את השנה המקורית לפי MusicBrainz, או null אם אין מידע.
+ * מחזיר את השנה המקורית לפי MusicBrainz (year=null אם אין מידע), ותיאור של מה שקרה.
  * תוצאות נשמרות במטמון (localStorage) כדי לא לחפש פעמיים.
  */
-export async function lookupOriginalYear(isrc: string): Promise<number | null> {
+export async function lookupOriginalYear(isrc: string): Promise<MbLookup> {
   const key = isrc.toUpperCase()
   const cached = getCachedYear(key)
-  if (cached !== undefined) return cached
+  if (cached !== undefined) return { year: cached, status: cached === null ? 'לא נמצא (מהמטמון)' : 'נמצא (מהמטמון)' }
 
   const url = `${BASE}/isrc/${encodeURIComponent(key)}?inc=releases&fmt=json`
+  let lastStatus = ''
   for (let attempt = 0; attempt < 3; attempt++) {
     let res: Response
     try {
       res = await throttled(() => mbFetch(url))
-    } catch {
-      return null // בעיית רשת – לא שומרים במטמון, אולי בפעם הבאה יצליח
+    } catch (e) {
+      // בעיית רשת/CORS – לא שומרים במטמון, אולי בפעם הבאה יצליח
+      return { year: null, status: `שגיאת רשת: ${e instanceof Error ? e.message : String(e)}` }
     }
     if (res.status === 404) {
       setCachedYear(key, null)
-      return null
+      return { year: null, status: 'ה-ISRC לא קיים במאגר (404)' }
     }
     if (res.status === 503 || res.status === 429) {
+      lastStatus = `עומס (${res.status})`
       await sleep(2000 * (attempt + 1)) // חרגנו מהקצב – מחכים ומנסים שוב
       continue
     }
-    if (!res.ok) return null
+    if (!res.ok) return { year: null, status: `שגיאה ${res.status}` }
     const year = earliestYearFromIsrcResponse(await res.json())
     setCachedYear(key, year)
-    return year
+    return { year, status: year === null ? 'נמצא אבל בלי תאריך' : `נמצא: ${year}` }
   }
-  return null
+  return { year: null, status: lastStatus || 'נכשל' }
 }

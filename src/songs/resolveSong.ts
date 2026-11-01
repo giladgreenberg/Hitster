@@ -21,7 +21,8 @@ export async function resolveSong(track: SpotifyTrack): Promise<ResolveResult> {
 
   const spotifyYear = parseYear(t.album?.release_date)
   const isrc = t.external_ids?.isrc ?? null
-  const mbYear = isrc ? await lookupOriginalYear(isrc) : null
+  const mb = isrc ? await lookupOriginalYear(isrc) : { year: null, status: 'אין ISRC' }
+  const mbYear = mb.year
 
   let year: number
   let yearSource: Song['yearSource']
@@ -30,12 +31,12 @@ export async function resolveSong(track: SpotifyTrack): Promise<ResolveResult> {
     year = spotifyYear !== null ? Math.min(mbYear, spotifyYear) : mbYear
     yearSource = 'musicbrainz'
   } else {
-    if (spotifyYear === null) return { ok: false, reason: 'אין שנה בכלל' }
+    if (spotifyYear === null) return { ok: false, reason: `אין שנה בכלל (MusicBrainz: ${mb.status})` }
     if (isSuspiciousTrack(t.name, t.album?.name ?? '')) {
-      return { ok: false, reason: 'אין ב-MusicBrainz והשם מרמז על רימאסטר/אוסף/הופעה' }
+      return { ok: false, reason: `השם מרמז על רימאסטר/אוסף/הופעה (MusicBrainz: ${mb.status})` }
     }
     if (t.album?.album_type === 'compilation') {
-      return { ok: false, reason: 'אין ב-MusicBrainz והאלבום הוא אוסף' }
+      return { ok: false, reason: `האלבום הוא אוסף (MusicBrainz: ${mb.status})` }
     }
     year = spotifyYear
     yearSource = 'spotify'
@@ -56,6 +57,7 @@ export async function resolveSong(track: SpotifyTrack): Promise<ResolveResult> {
       spotifyYear,
       year,
       yearSource,
+      mbStatus: mb.status,
     },
   }
 }
