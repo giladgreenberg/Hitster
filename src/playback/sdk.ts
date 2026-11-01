@@ -73,5 +73,26 @@ export function getBrowserDeviceId(): Promise<string> {
 
 /** חובה לקרוא בתוך לחיצה של המשתמש – אחרת דפדפנים חוסמים השמעה אוטומטית. */
 export function activateBrowserPlayer() {
+  if (player) browserActivated = true
   player?.activateElement().catch(() => {})
+}
+
+/** האם כבר "שחררנו" את חסימת הקול בדפדפן הזה (בלחיצה של המשתמש) */
+export let browserActivated = false
+
+/**
+ * מאפשר לנגן בדפדפן הזה להשמיע קול גם כשהפקודה מגיעה ממכשיר אחר (למשל מהטלפון).
+ * דפדפנים חוסמים קול עד שמשתמש לוחץ על הדף – אז בלחיצה הראשונה אחרי שהנגן מוכן, משחררים.
+ */
+export function armActivationOnNextClick(onActivated: () => void) {
+  if (browserActivated) return () => {}
+  const handler = () => {
+    if (!player) return
+    player.activateElement().catch(() => {})
+    browserActivated = true
+    document.removeEventListener('pointerdown', handler, true)
+    onActivated()
+  }
+  document.addEventListener('pointerdown', handler, true)
+  return () => document.removeEventListener('pointerdown', handler, true)
 }

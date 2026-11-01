@@ -50,6 +50,14 @@ export default function OutputPicker({ playback }: { playback: Playback }) {
           {mode?.kind === 'browser' && <span className="ms-auto text-sm">{playback.browserReady ? '✓ מוכן' : 'טוען…'}</span>}
         </button>
       )}
+      {!mobile && mode?.kind === 'browser' && playback.browserReady && !playback.audioUnlocked && (
+        <p className="rounded-xl bg-amber-500/20 p-3 text-sm text-amber-100">
+          🔊 רוצים לשלוט במחשב הזה מהטלפון? לחצו פעם אחת בכל מקום בדף הזה (הדפדפן לא מאפשר השמעה לפני לחיצה), והשאירו את הלשונית פתוחה.
+        </p>
+      )}
+      {!mobile && mode?.kind === 'browser' && playback.audioUnlocked && (
+        <p className="text-xs text-green-300">✓ המחשב מוכן לנגן – גם כשהמשחק נשלט מהטלפון (השאירו את הלשונית פתוחה)</p>
+      )}
 
       {mobile && (
         <p className="rounded-xl bg-white/5 p-3 text-sm text-violet-200">

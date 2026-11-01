@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { activateBrowserPlayer, getBrowserDeviceId, lastSdkProblem } from './sdk'
+import { activateBrowserPlayer, armActivationOnNextClick, browserActivated, getBrowserDeviceId, lastSdkProblem } from './sdk'
 import { currentlyPlaying, describePlayerState, isMobileBrowser, pause as apiPause, playTrack, randomStartMs, resume as apiResume } from './controller'
 import type { Song } from '../songs/types'
 
@@ -24,6 +24,7 @@ export function usePlayback() {
   const [error, setError] = useState<string | null>(null)
   const current = useRef<{ uri: string; startMs: number; device: string; albumUri: string | null } | null>(null)
   const [browserReady, setBrowserReady] = useState(false)
+  const [audioUnlocked, setAudioUnlocked] = useState(browserActivated)
   const [status, setStatus] = useState<string | null>(null)
 
   // ---------- "השמעת קטע בלבד": כל השמעה היא קטע קבוע (למשל 20 שניות) מאותה נקודת התחלה ----------
@@ -86,11 +87,18 @@ export function usePlayback() {
   useEffect(() => {
     if (mode?.kind !== 'browser') return
     let cancelled = false
+    let disarm = () => {}
     getBrowserDeviceId()
-      .then(() => !cancelled && setBrowserReady(true))
+      .then(() => {
+        if (cancelled) return
+        setBrowserReady(true)
+        // הלחיצה הבאה בדף משחררת את חסימת הקול – כדי שגם טלפון יוכל לנגן דרך המחשב
+        disarm = armActivationOnNextClick(() => setAudioUnlocked(true))
+      })
       .catch((e) => !cancelled && setError(e instanceof Error ? e.message : String(e)))
     return () => {
       cancelled = true
+      disarm()
     }
   }, [mode])
 
@@ -119,7 +127,11 @@ export function usePlayback() {
       return true
     } catch (e) {
       const sdk = mode?.kind === 'browser' && lastSdkProblem ? ` · ${lastSdkProblem}` : ''
-      setError((e instanceof Error ? e.message : String(e)) + sdk)
+      const remotePc =
+        mode?.kind === 'device' && mode.name.startsWith('היטסטר')
+          ? '\n\n💡 מנגנים דרך המחשב? ודאו שהמשחק פתוח שם בדפדפן, ש"נגן כאן בדפדפן" מסומן, ושלחצתם פעם אחת בדף שם (הדפדפן חוסם קול עד לחיצה). אחר כך נסו שוב.'
+          : ''
+      setError((e instanceof Error ? e.message : String(e)) + sdk + remotePc)
       return false
     } finally {
       setBusy(false)
@@ -232,7 +244,7 @@ export function usePlayback() {
     setPlaying(false)
   }, [stop])
 
-  return { mode, setMode, reset, prime, browserReady, status, clipMs, clipView, setClipSeconds, isPlaying, busy, error, playSong, restart, pause, resume, stop, hasSong: () => current.current !== null }
+  return { mode, setMode, reset, prime, browserReady, audioUnlocked: audioUnlocked || browserActivated, status, clipMs, clipView, setClipSeconds, isPlaying, busy, error, playSong, restart, pause, resume, stop, hasSong: () => current.current !== null }
 }
 
 export type Playback = ReturnType<typeof usePlayback>
