@@ -1,6 +1,6 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { activateBrowserPlayer, getBrowserDeviceId } from './sdk'
-import { isMobileBrowser, pause as apiPause, playTrack, randomStartMs, resume as apiResume } from './controller'
+import { describePlayerState, isMobileBrowser, pause as apiPause, playTrack, randomStartMs, resume as apiResume } from './controller'
 import type { Song } from '../songs/types'
 
 export type OutputMode = { kind: 'browser' } | { kind: 'device'; id: string; name: string }
@@ -23,6 +23,29 @@ export function usePlayback() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const current = useRef<{ uri: string; startMs: number } | null>(null)
+  const [browserReady, setBrowserReady] = useState(false)
+  const [status, setStatus] = useState<string | null>(null)
+
+  const checkStatus = () => {
+    setStatus(null)
+    setTimeout(() => {
+      describePlayerState()
+        .then(setStatus)
+        .catch(() => {})
+    }, 2000)
+  }
+
+  // טוענים את הנגן בדפדפן מראש, כדי שהלחיצה על "נגן" תוכל "לשחרר" את חסימת הקול של הדפדפן
+  useEffect(() => {
+    if (mode?.kind !== 'browser') return
+    let cancelled = false
+    getBrowserDeviceId()
+      .then(() => !cancelled && setBrowserReady(true))
+      .catch((e) => !cancelled && setError(e instanceof Error ? e.message : String(e)))
+    return () => {
+      cancelled = true
+    }
+  }, [mode])
 
   const setMode = useCallback((m: OutputMode | null) => {
     setModeState(m)
@@ -40,6 +63,7 @@ export function usePlayback() {
   }, [mode])
 
   const run = useCallback(async (fn: () => Promise<unknown>) => {
+    if (mode?.kind === 'browser') activateBrowserPlayer() // חייב לקרות מיד בלחיצה
     setBusy(true)
     setError(null)
     try {
@@ -51,7 +75,7 @@ export function usePlayback() {
     } finally {
       setBusy(false)
     }
-  }, [])
+  }, [mode])
 
   /** מנגן שיר חדש. randomStart = להתחיל מנקודה אקראית */
   const playSong = useCallback(
@@ -61,6 +85,7 @@ export function usePlayback() {
         current.current = { uri: song.uri, startMs }
         await playTrack(await deviceId(), song.uri, startMs)
         setPlaying(true)
+        checkStatus()
       }),
     [deviceId, run],
   )
@@ -111,7 +136,7 @@ export function usePlayback() {
     setPlaying(false)
   }, [stop])
 
-  return { mode, setMode, reset, isPlaying, busy, error, playSong, restart, pause, resume, stop, hasSong: () => current.current !== null }
+  return { mode, setMode, reset, browserReady, status, isPlaying, busy, error, playSong, restart, pause, resume, stop, hasSong: () => current.current !== null }
 }
 
 export type Playback = ReturnType<typeof usePlayback>

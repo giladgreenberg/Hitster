@@ -37,6 +37,7 @@ export default function OutputPicker({ playback }: { playback: Playback }) {
       {!mobile && (
         <button className={btn(mode?.kind === 'browser')} onClick={() => setMode({ kind: 'browser' })}>
           <span>🖥️</span> נגן כאן בדפדפן
+          {mode?.kind === 'browser' && <span className="ms-auto text-sm">{playback.browserReady ? '✓ מוכן' : 'טוען…'}</span>}
         </button>
       )}
 

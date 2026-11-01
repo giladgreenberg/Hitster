@@ -65,3 +65,11 @@ export function isMobileBrowser(): boolean {
   const ua = navigator.userAgent
   return /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua))
 }
+
+/** מה ספוטיפיי חושב שקורה עכשיו – לאבחון */
+export async function describePlayerState(): Promise<string> {
+  const st = await spotifyFetch<{ is_playing: boolean; device?: { name: string; volume_percent: number | null } } | undefined>('/me/player')
+  if (!st) return 'ספוטיפיי מדווח: אין השמעה פעילה באף מכשיר'
+  const vol = st.device?.volume_percent
+  return `ספוטיפיי מדווח: ${st.is_playing ? 'מתנגן' : 'לא מתנגן'} במכשיר "${st.device?.name ?? '?'}"${vol != null ? ` · עוצמה ${vol}%` : ''}`
+}
