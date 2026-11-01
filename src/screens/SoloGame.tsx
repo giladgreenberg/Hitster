@@ -15,6 +15,8 @@ import YearGuess, { ExactGuessResult } from '../components/YearGuess'
 import { parseYearGuess } from '../game/bonus'
 import Confetti from '../components/Confetti'
 import { ScoreTable } from './HighScores'
+import StatsPanel from '../components/StatsPanel'
+import { playFanfare } from '../sound/fanfare'
 
 interface Props {
   initial: SoloState
@@ -83,6 +85,7 @@ export default function SoloGame({ initial, initialQueue, playback, onNewGame, o
     const date = new Date().toISOString()
     const res = saveScore({ name: game.name, score: game.score, date, category })
     setFinal({ rank: res.rank, isRecord: res.isRecord, overallRank: res.overallRank, overallRecord: res.overallRecord, date })
+    if (res.isRecord || res.overallRecord) playFanfare()
     dispatch({ type: 'finish' })
   }
 
@@ -108,6 +111,10 @@ export default function SoloGame({ initial, initialQueue, playback, onNewGame, o
         <div className="rounded-2xl bg-white/5 p-3 text-start">
           <h2 className="mb-2 text-lg font-bold">🏆 טבלת שיאים – {CATEGORY_LABELS[category]}</h2>
           <ScoreTable category={category} highlightDate={final?.date} />
+        </div>
+        <div className="space-y-3 text-start">
+          <h2 className="text-lg font-bold">📊 סטטיסטיקות</h2>
+          <StatsPanel events={game.events} actors={[game.name]} />
         </div>
         <div className="text-start">
           <p className="mb-1 text-sm text-violet-300">הציר שלך:</p>

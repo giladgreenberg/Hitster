@@ -44,3 +44,9 @@ body {
 @keyframes time-land { 0% { transform: scale(1.35); text-shadow: 0 0 24px #fde047; } 100% { transform: scale(1); text-shadow: none; } }
 .fact-in { animation: fact-in 0.5s ease-out 2.1s both; }
 @keyframes fact-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* פודיום */
+.podium-rise { transform-origin: bottom; animation: podium-rise 0.7s cubic-bezier(.2,.9,.3,1.2) both; }
+@keyframes podium-rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.podium-in { animation: podium-in 0.6s cubic-bezier(.2,.9,.3,1.3) both; }
+@keyframes podium-in { from { opacity: 0; transform: translateY(-40px) scale(.6); } to { opacity: 1; transform: none; } }

@@ -10,7 +10,8 @@ import Timeline from '../components/Timeline'
 import FlipCard from '../components/FlipCard'
 import PlayerControls from '../components/PlayerControls'
 import Lives from '../components/Lives'
-import Confetti from '../components/Confetti'
+import Podium from '../components/Podium'
+import StatsPanel from '../components/StatsPanel'
 import YearGuess, { ExactGuessResult } from '../components/YearGuess'
 import { parseYearGuess } from '../game/bonus'
 
@@ -30,6 +31,8 @@ export default function ExtremeGame({ initial, initialQueue, playback, onNewGame
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [menu, setMenu] = useState(false)
+  const [endStep, setEndStep] = useState<'podium' | 'stats'>('podium')
+  const [podiumDone, setPodiumDone] = useState(false)
   const [guess, setGuess] = useState('')
   const exactOn = game.settings.exactYear !== false
   // שיר חדש = שדה ניחוש ריק
@@ -81,16 +84,32 @@ export default function ExtremeGame({ initial, initialQueue, playback, onNewGame
 
   if (game.phase === 'over') {
     const w = game.winner !== null ? game.teams[game.winner] : null
+    const ranked = game.winner === 1 ? [game.teams[1], game.teams[0]] : [game.teams[0], game.teams[1]]
+    if (endStep === 'podium') {
+      return (
+        <main className="mx-auto flex min-h-full max-w-md flex-col gap-6 p-4 text-center">
+          <h1 className="pt-4 text-3xl font-black">{w ? `${w.name} ניצחו! 🏆` : 'תיקו! 🤝'}</h1>
+          <Podium entries={ranked.map((t) => ({ name: t.name, score: `✓ ${t.correct} נכונים`, sub: `${'❤️'.repeat(t.lives)}${'🖤'.repeat(3 - t.lives)}` }))} onDone={() => setPodiumDone(true)} />
+          <p className="text-violet-200">
+            הציר המשותף הגיע ל-{game.timeline.length} שירים אחרי {game.turn} תורות
+          </p>
+          <button
+            onClick={() => setEndStep('stats')}
+            disabled={!podiumDone}
+            className={`mt-auto w-full rounded-2xl bg-violet-500 py-4 text-2xl font-black transition-opacity active:scale-95 ${podiumDone ? '' : 'opacity-0'}`}
+          >
+            📊 לסטטיסטיקות
+          </button>
+        </main>
+      )
+    }
     return (
       <main className="mx-auto max-w-md space-y-5 p-4 text-center">
-        {w && <Confetti />}
-        <div className="pop-in pt-6 text-8xl">{w ? '🏆' : '🤝'}</div>
-        <h1 className="text-4xl font-black">{w ? `${w.name} ניצחו!` : 'תיקו!'}</h1>
+        <h1 className="pt-4 text-3xl font-black">📊 סיכום המשחק</h1>
         {scoreboard}
-        <p className="text-violet-200">
-          הציר המשותף הגיע ל-{game.timeline.length} שירים אחרי {game.turn} תורות
-        </p>
+        <StatsPanel events={game.events} actors={game.teams.map((t) => t.name)} />
         <div className="text-start">
+          <p className="mb-1 text-sm text-violet-300">הציר המשותף ({game.timeline.length} שירים):</p>
           <Timeline timeline={game.timeline} longTools />
         </div>
         <button onClick={onRematch} className="w-full rounded-2xl bg-green-500 py-4 text-2xl font-black text-black active:scale-95">
