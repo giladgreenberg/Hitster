@@ -1,0 +1,21 @@
+// ז'אנרים לבחירה במצב "אקראי מספוטיפיי" (הערך הוא מה שנשלח לחיפוש genre:"...")
+export const GENRES: { value: string; label: string }[] = [
+  { value: 'pop', label: 'פופ' },
+  { value: 'rock', label: 'רוק' },
+  { value: 'hip hop', label: 'היפ-הופ' },
+  { value: 'dance', label: 'דאנס' },
+  { value: 'disco', label: 'דיסקו' },
+  { value: 'soul', label: 'סול' },
+  { value: 'r&b', label: 'R&B' },
+  { value: 'funk', label: 'פאנק' },
+  { value: 'new wave', label: 'ניו-ווייב' },
+  { value: 'electronic', label: 'אלקטרוני' },
+  { value: 'indie', label: 'אינדי' },
+  { value: 'metal', label: 'מטאל' },
+  { value: 'punk', label: 'פאנק-רוק' },
+  { value: 'country', label: 'קאנטרי' },
+  { value: 'reggae', label: 'רגאיי' },
+  { value: 'latin', label: 'לטיני' },
+  { value: 'jazz', label: "ג'אז" },
+  { value: 'blues', label: 'בלוז' },
+]

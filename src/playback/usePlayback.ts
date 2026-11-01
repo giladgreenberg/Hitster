@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { activateBrowserPlayer, getBrowserDeviceId, lastSdkProblem } from './sdk'
-import { describePlayerState, isMobileBrowser, pause as apiPause, playTrack, randomStartMs, resume as apiResume } from './controller'
+import { currentlyPlaying, describePlayerState, isMobileBrowser, pause as apiPause, playTrack, randomStartMs, resume as apiResume } from './controller'
 import type { Song } from '../songs/types'
 
 export type OutputMode = { kind: 'browser' } | { kind: 'device'; id: string; name: string }
@@ -141,6 +141,30 @@ export function usePlayback() {
     }
   }, [deviceId, mode])
 
+  // שומר: אם התחיל להתנגן שיר אחר (למשל השיר הבא באלבום) – עוצרים
+  useEffect(() => {
+    if (!isPlaying) return
+    const t = setInterval(async () => {
+      const cur = current.current
+      if (!cur) return
+      try {
+        const st = await currentlyPlaying()
+        if (st.playing && st.uri && st.uri !== cur.uri) {
+          await apiPause(cur.device)
+          setPlaying(false)
+        } else if (!st.playing) setPlaying(false)
+      } catch {
+        /* ignore */
+      }
+    }, 4000)
+    return () => clearInterval(t)
+  }, [isPlaying])
+
+  /** לקרוא בתוך לחיצה, לפני פעולה ארוכה שבסופה ננגן (משחרר חסימת קול בדפדפן) */
+  const prime = useCallback(() => {
+    if (mode?.kind === 'browser') activateBrowserPlayer()
+  }, [mode])
+
   /** שיר חדש בתור: עוצרים את הקודם ושוכחים אותו */
   const reset = useCallback(() => {
     if (current.current) stop()
@@ -148,7 +172,7 @@ export function usePlayback() {
     setPlaying(false)
   }, [stop])
 
-  return { mode, setMode, reset, browserReady, status, isPlaying, busy, error, playSong, restart, pause, resume, stop, hasSong: () => current.current !== null }
+  return { mode, setMode, reset, prime, browserReady, status, isPlaying, busy, error, playSong, restart, pause, resume, stop, hasSong: () => current.current !== null }
 }
 
 export type Playback = ReturnType<typeof usePlayback>

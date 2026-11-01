@@ -116,6 +116,11 @@ export async function playTrack(deviceId: string, uri: string, positionMs = 0, a
     ],
   ]
 
+  // מנסים קודם את הדרך שעבדה בפעם הקודמת במכשיר הזה
+  const prefKey = `hitster.playMethod.${deviceId}`
+  const pref = localStorage.getItem(prefKey)
+  attempts.sort((a, b) => (b[0] === pref ? 1 : 0) - (a[0] === pref ? 1 : 0))
+
   const problems: string[] = []
   let ok = false
   for (const [label, attempt] of attempts) {
@@ -124,6 +129,7 @@ export async function playTrack(deviceId: string, uri: string, positionMs = 0, a
       const problem = await verifyPlaying(deviceId, uri)
       if (!problem) {
         ok = true
+        localStorage.setItem(prefKey, label)
         break
       }
       problems.push(`${label}: ${problem}`)
@@ -201,4 +207,10 @@ export async function diagnoseDevice(deviceId: string, uri: string, albumUri: st
   if (albumUri) await step('6. נגן את האלבום מהשיר (context_uri)', () => spotifyFetch(`/me/player/play?device_id=${dev}`, json({ context_uri: albumUri, offset: { uri } })))
   await step('7. השהיה בסוף', () => spotifyFetch(`/me/player/pause?device_id=${dev}`, { method: 'PUT' }))
   log('סיום הבדיקה')
+}
+
+/** מה מתנגן כרגע (uri) והאם מתנגן – לשמירה שלא ימשיך לשיר הבא באלבום */
+export async function currentlyPlaying(): Promise<{ uri: string | null; playing: boolean }> {
+  const st = await getState()
+  return { uri: st?.item?.uri ?? null, playing: !!st?.is_playing }
 }
