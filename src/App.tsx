@@ -7,6 +7,7 @@ import { isExtreme, isSolo, startGame, type AnyGame } from './game/startGame'
 import ExtremeGame from './screens/ExtremeGame'
 import SoloGame from './screens/SoloGame'
 import HighScores from './screens/HighScores'
+import Help from './screens/Help'
 import Login from './screens/Login'
 import { createSummaryPlaylist, takePendingPlaylist } from './spotify/playlists'
 import Setup from './screens/Setup'
@@ -20,6 +21,7 @@ type View =
   | { name: 'game'; game: AnyGame; queue: SongQueue | null; key: number }
   | { name: 'debug' }
   | { name: 'highscores' }
+  | { name: 'help' }
 
 export default function App() {
   const [view, setView] = useState<View>({ name: 'loading' })
@@ -108,10 +110,13 @@ export default function App() {
           onStart={(game, queue) => setView({ name: 'game', game, queue, key: Date.now() })}
           onDebug={() => setView({ name: 'debug' })}
           onHighScores={() => setView({ name: 'highscores' })}
+          onHelp={() => setView({ name: 'help' })}
           onLogout={doLogout}
         />
         </>
       )
+    case 'help':
+      return <Help onBack={() => setView({ name: 'setup' })} />
     case 'highscores':
       return <HighScores onBack={() => setView({ name: 'setup' })} />
     case 'game':

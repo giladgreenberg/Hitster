@@ -27,10 +27,11 @@ interface Props {
   onStart: (game: AnyGame, queue: SongQueue) => void
   onDebug: () => void
   onHighScores: () => void
+  onHelp: () => void
   onLogout: () => void
 }
 
-export default function Setup({ playback, onStart, onDebug, onHighScores, onLogout }: Props) {
+export default function Setup({ playback, onStart, onDebug, onHighScores, onHelp, onLogout }: Props) {
   const saved = loadSettings()
   const [mode, setMode] = useState<GameMode>(saved?.mode ?? 'classic')
   const [players, setPlayers] = useState<string[]>(saved?.players ?? defaults.players)
@@ -109,9 +110,14 @@ export default function Setup({ playback, onStart, onDebug, onHighScores, onLogo
       <section className={section}>
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold">מצב משחק</h2>
-          <button onClick={onHighScores} className="rounded-lg bg-white/10 px-3 py-1 text-sm">
-            🏆 שיאי סולו
-          </button>
+          <div className="flex gap-2">
+            <button onClick={onHelp} className="rounded-lg bg-white/10 px-3 py-1 text-sm">
+              📖 הוראות
+            </button>
+            <button onClick={onHighScores} className="rounded-lg bg-white/10 px-3 py-1 text-sm">
+              🏆 שיאי סולו
+            </button>
+          </div>
         </div>
         <ModePicker value={mode} onChange={setMode} />
       </section>
