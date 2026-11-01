@@ -54,6 +54,7 @@ export async function resolveSong(track: SpotifyTrack): Promise<ResolveResult> {
       artists: t.artists.map((a) => a.name).join(', '),
       album: t.album?.name ?? '',
       coverUrl: images[0]?.url ?? null,
+      albumUri: t.album?.uri ?? null,
       durationMs: t.duration_ms,
       isrc,
       spotifyYear,

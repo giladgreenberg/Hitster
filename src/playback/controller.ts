@@ -55,7 +55,7 @@ async function verifyPlaying(deviceId: string, uri: string): Promise<string | nu
 }
 
 /** מנגן שיר מסוים במכשיר, החל מ-positionMs. זורק שגיאה מפורטת אם ההשמעה לא התחילה בפועל. */
-export async function playTrack(deviceId: string, uri: string, positionMs = 0) {
+export async function playTrack(deviceId: string, uri: string, positionMs = 0, albumUri: string | null = null) {
   const doPlay = () =>
     spotifyFetch(`/me/player/play?device_id=${encodeURIComponent(deviceId)}`, {
       method: 'PUT',
@@ -90,6 +90,19 @@ export async function playTrack(deviceId: string, uri: string, positionMs = 0) {
         })
       },
     ],
+    ...(albumUri
+      ? ([
+          [
+            'השמעת האלבום מהשיר',
+            () =>
+              spotifyFetch(`/me/player/play?device_id=${encodeURIComponent(deviceId)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ context_uri: albumUri, offset: { uri }, position_ms: pos }),
+              }),
+          ],
+        ] as [string, () => Promise<unknown>][])
+      : []),
     [
       'הוספה לתור ודילוג',
       async () => {
@@ -154,4 +167,38 @@ export async function describePlayerState(): Promise<string> {
   if (!st) return 'ספוטיפיי מדווח: אין השמעה פעילה באף מכשיר'
   const vol = st.device?.volume_percent
   return `ספוטיפיי מדווח: ${st.is_playing ? 'מתנגן' : 'לא מתנגן'} במכשיר "${st.device?.name ?? '?'}"${vol != null ? ` · עוצמה ${vol}%` : ''}`
+}
+
+/** בדיקת טלפון: מריץ פקודות פשוטות אחת-אחת ומדווח מה קרה אחרי כל אחת */
+export async function diagnoseDevice(deviceId: string, uri: string, albumUri: string | null, log: (m: string) => void) {
+  const dev = encodeURIComponent(deviceId)
+  const state = async () => {
+    await sleep(2500)
+    try {
+      const st = await getState()
+      if (!st) return 'אין השמעה פעילה'
+      return `${st.is_playing ? '▶ מתנגן' : '⏸ לא מתנגן'} · מכשיר: ${st.device?.name ?? '?'} · ${st.item?.uri === uri ? 'השיר שלנו' : 'שיר אחר'} · ${Math.round((st.progress_ms ?? 0) / 1000)} שנ'`
+    } catch (e) {
+      return `לא הצלחתי לקרוא מצב: ${e instanceof Error ? e.message : e}`
+    }
+  }
+  const step = async (label: string, fn: () => Promise<unknown>) => {
+    log(`… ${label}`)
+    try {
+      await fn()
+      log(`✓ ${label} – התקבל. מצב: ${await state()}`)
+    } catch (e) {
+      log(`✗ ${label} – ${e instanceof Error ? e.message : e}`)
+    }
+  }
+  const json = (body: unknown): RequestInit => ({ method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+
+  await step('1. העברה לטלפון (בלי לנגן)', () => transferTo(deviceId, false))
+  await step('2. המשך (בלי לבחור שיר)', () => spotifyFetch(`/me/player/play?device_id=${dev}`, { method: 'PUT' }))
+  await step('3. השהיה', () => spotifyFetch(`/me/player/pause?device_id=${dev}`, { method: 'PUT' }))
+  await step('4. העברה לטלפון עם ניגון', () => transferTo(deviceId, true))
+  await step('5. נגן את השיר שלנו (uris)', () => spotifyFetch(`/me/player/play?device_id=${dev}`, json({ uris: [uri] })))
+  if (albumUri) await step('6. נגן את האלבום מהשיר (context_uri)', () => spotifyFetch(`/me/player/play?device_id=${dev}`, json({ context_uri: albumUri, offset: { uri } })))
+  await step('7. השהיה בסוף', () => spotifyFetch(`/me/player/pause?device_id=${dev}`, { method: 'PUT' }))
+  log('סיום הבדיקה')
 }

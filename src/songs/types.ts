@@ -5,6 +5,7 @@ export interface Song {
   artists: string
   album: string
   coverUrl: string | null
+  albumUri: string | null
   durationMs: number
   isrc: string | null
   /** השנה לפי תאריך האלבום בספוטיפיי (עלולה להיות של רימאסטר/אוסף) */

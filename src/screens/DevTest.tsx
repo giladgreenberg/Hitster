@@ -7,6 +7,7 @@ import type { Song } from '../songs/types'
 import { usePlayback } from '../playback/usePlayback'
 import OutputPicker from '../components/OutputPicker'
 import PlayerControls from '../components/PlayerControls'
+import { diagnoseDevice } from '../playback/controller'
 
 export default function DevTest({ onLogout }: { onLogout: () => void }) {
   const [me, setMe] = useState<string>('')
@@ -21,6 +22,8 @@ export default function DevTest({ onLogout }: { onLogout: () => void }) {
   const [error, setError] = useState<string | null>(null)
   const [randomStart, setRandomStart] = useState(false)
   const [hidden, setHidden] = useState(true)
+  const [diag, setDiag] = useState<string[]>([])
+  const [diagRunning, setDiagRunning] = useState(false)
   const playback = usePlayback()
   const sourceRef = useRef<{ key: string; src: SongSource } | null>(null)
 
@@ -128,6 +131,29 @@ export default function DevTest({ onLogout }: { onLogout: () => void }) {
           <PlayerControls playback={playback} onPlay={() => playback.playSong(song, randomStart)} />
         ) : (
           <p className="text-sm text-violet-300">הביאו קודם שיר (סעיף 1 או 2)</p>
+        )}
+        {song && playback.mode?.kind === 'device' && (
+          <button
+            disabled={diagRunning}
+            className="w-full rounded-xl bg-white/10 py-3 disabled:opacity-40"
+            onClick={async () => {
+              const m = playback.mode
+              if (m?.kind !== 'device') return
+              setDiag([])
+              setDiagRunning(true)
+              await diagnoseDevice(m.id, song.uri, song.albumUri, (line) => setDiag((d) => [...d, line]))
+              setDiagRunning(false)
+            }}
+          >
+            {diagRunning ? 'בודק… (כחצי דקה)' : `🔧 בדיקת טלפון (${playback.mode.name})`}
+          </button>
+        )}
+        {diag.length > 0 && (
+          <div className="rounded-xl bg-black/40 p-3 text-xs leading-6 select-text">
+            {diag.map((l, i) => (
+              <div key={i}>{l}</div>
+            ))}
+          </div>
         )}
       </section>
 
