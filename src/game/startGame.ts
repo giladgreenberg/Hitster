@@ -1,4 +1,5 @@
 import { createSongQueue, type SongQueue } from '../songs/queue'
+import { onRateLimitWait } from '../spotify/api'
 import type { Song } from '../songs/types'
 import { newGame, type GameState, type Settings } from './game'
 import { newSoloGame, type SoloState } from './solo'
@@ -29,15 +30,26 @@ export async function startGame(settings: Settings, onProgress: (msg: string) =>
     checked++
     onProgress(`${label} (נבדקו ${checked} שירים)`)
   })
+  // ממתינים לספוטיפיי? מראים את זה, כדי שלא ייראה תקוע
+  const stopWaitNotice = onRateLimitWait((s) => {
+    if (!done) onProgress(`⏳ ספוטיפיי ביקש להאט – ממתינים ${Math.ceil(s)} שניות וממשיכים לבד…`)
+  })
   const starters: Song[] = []
-  for (let i = 0; i < n; i++) {
-    label = n > 1 ? `מכין שירי פתיחה ${i + 1}/${n}…` : 'מכין את השיר הראשון…'
-    onProgress(label)
-    const s = await queue.take()
-    if (!s) throw new Error('לא נמצאו מספיק שירים במקור שנבחר')
-    starters.push(s)
+  try {
+    for (let i = 0; i < n; i++) {
+      label = n > 1 ? `מכין שירי פתיחה ${i + 1}/${n}…` : 'מכין את השיר הראשון…'
+      onProgress(label)
+      const s = await queue.take()
+      if (!s) throw new Error('לא נמצאו מספיק שירים במקור שנבחר')
+      starters.push(s)
+    }
+  } catch (e) {
+    done = true
+    stopWaitNotice()
+    throw e
   }
   done = true
+  stopWaitNotice()
   if (settings.mode === 'solo') return { game: newSoloGame(settings, starters[0]), queue }
   if (settings.mode === 'extreme') return { game: newExtremeGame(settings, starters[0]), queue }
   return { game: newGame({ ...settings, mode: 'classic' }, starters), queue }

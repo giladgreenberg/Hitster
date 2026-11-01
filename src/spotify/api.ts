@@ -48,13 +48,26 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 // 1. מרווח מינימלי בין בקשות, כדי לא לשלוח "פרצים".
 // 2. כשספוטיפיי מחזיר 429 – מכבדים את Retry-After במלואו, ובזמן הזה לא שולחים כלום
 //    (בקשות נוספות בזמן חסימה רק מאריכות אותה).
-const MIN_GAP_MS = 120
-const MAX_INLINE_WAIT_S = 15
+const MIN_GAP_MS = 250
+/** המתנות עד אורך כזה – מחכים בשקט וממשיכים. ארוכות יותר – מציגים שגיאה. */
+const MAX_INLINE_WAIT_S = 60
+const MAX_RATE_RETRIES = 8
 let lastRequestAt = 0
 let gate: Promise<unknown> = Promise.resolve()
 let cooldownUntil = 0
 
 export class SpotifyRateLimitError extends Error {}
+
+// מי שרוצה לדעת שאנחנו ממתינים לספוטיפיי (כדי להציג "ממתין…" במקום מסך תקוע)
+type WaitListener = (seconds: number) => void
+const waitListeners = new Set<WaitListener>()
+export function onRateLimitWait(fn: WaitListener): () => void {
+  waitListeners.add(fn)
+  return () => waitListeners.delete(fn)
+}
+function announceWait(seconds: number) {
+  for (const fn of waitListeners) fn(seconds)
+}
 
 function waitText(sec: number) {
   return sec < 90 ? `${Math.ceil(sec)} שניות` : `${Math.ceil(sec / 60)} דקות`
@@ -70,7 +83,10 @@ async function paced(): Promise<void> {
   if (left > MAX_INLINE_WAIT_S) {
     throw new SpotifyRateLimitError(`ספוטיפיי ביקש להאט (יותר מדי בקשות). נסו שוב בעוד ${waitText(left)}.`)
   }
-  if (left > 0) await sleep(left * 1000)
+  if (left > 0) {
+    announceWait(left)
+    await sleep(left * 1000)
+  }
   const turn = gate.then(async () => {
     const wait = lastRequestAt + MIN_GAP_MS - Date.now()
     if (wait > 0) await sleep(wait)
@@ -107,13 +123,17 @@ async function spotifyFetchInner<T>(path: string, init: RequestInit, attempt: nu
     return spotifyFetchInner<T>(path, init, attempt + 1)
   }
   if (res.status === 429) {
-    const wait = Math.max(1, Number(res.headers.get('Retry-After') ?? '5') || 5)
-    cooldownUntil = Math.max(cooldownUntil, Date.now() + wait * 1000)
-    if (wait <= MAX_INLINE_WAIT_S && attempt < 3) {
+    const asked = Math.max(1, Number(res.headers.get('Retry-After') ?? '5') || 5)
+    // כל ניסיון חוזר מחכה קצת יותר מהקודם (ספוטיפיי לפעמים מבקש 5 שניות שוב ושוב)
+    const wait = Math.min(MAX_INLINE_WAIT_S, Math.max(asked, 2 ** Math.min(attempt, 5)))
+    // החסימה נמשכת לפחות כמה שספוטיפיי ביקש (גם אם זה יותר ממה שאנחנו מוכנים לחכות בשקט)
+    cooldownUntil = Math.max(cooldownUntil, Date.now() + Math.max(wait, asked) * 1000)
+    if (asked <= MAX_INLINE_WAIT_S && attempt < MAX_RATE_RETRIES) {
+      announceWait(wait)
       await sleep(wait * 1000)
       return spotifyFetchInner<T>(path, init, attempt + 1)
     }
-    throw new SpotifyRateLimitError(`ספוטיפיי ביקש להאט (יותר מדי בקשות). נסו שוב בעוד ${waitText(wait)}.`)
+    throw new SpotifyRateLimitError(`ספוטיפיי ביקש להאט (יותר מדי בקשות). נסו שוב בעוד ${waitText(asked)}.`)
   }
   if (!res.ok) {
     let msg = `${res.status}`
