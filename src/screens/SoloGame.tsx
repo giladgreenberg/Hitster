@@ -16,6 +16,7 @@ import { parseYearGuess } from '../game/bonus'
 import Confetti from '../components/Confetti'
 import { ScoreTable } from './HighScores'
 import StatsPanel from '../components/StatsPanel'
+import EndActions from '../components/EndActions'
 import { playFanfare } from '../sound/fanfare'
 
 interface Props {
@@ -113,6 +114,15 @@ export default function SoloGame({ initial, initialQueue, playback, onNewGame, o
           <h2 className="mb-2 text-lg font-bold">🏆 טבלת שיאים – {CATEGORY_LABELS[category]}</h2>
           <ScoreTable category={category} highlightDate={final?.date} />
         </div>
+        <EndActions
+          usedIds={game.usedIds}
+          card={{
+            title: game.name,
+            score: `${game.score} נקודות${record ? ' – שיא חדש!' : ''}`,
+            subtitle: `סולו · ${CATEGORY_LABELS[category]}`,
+            timeline: game.timeline,
+          }}
+        />
         <button onClick={() => setShowStats(!showStats)} className="w-full rounded-2xl bg-violet-500 py-3 text-xl font-black active:scale-95">
           {showStats ? 'הסתרת הסטטיסטיקות' : '📊 סטטיסטיקות'}
         </button>

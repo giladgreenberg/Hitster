@@ -8,6 +8,7 @@ import ExtremeGame from './screens/ExtremeGame'
 import SoloGame from './screens/SoloGame'
 import HighScores from './screens/HighScores'
 import Login from './screens/Login'
+import { createSummaryPlaylist, takePendingPlaylist } from './spotify/playlists'
 import Setup from './screens/Setup'
 import Game from './screens/Game'
 import DevTest from './screens/DevTest'
@@ -24,8 +25,20 @@ export default function App() {
   const [view, setView] = useState<View>({ name: 'loading' })
   const [error, setError] = useState<string | null>(null)
   const playback = usePlayback()
+  const [notice, setNotice] = useState<{ text: string; url?: string; error?: boolean } | null>(null)
+
+  /** אחרי התחברות מחדש בשביל פלייליסט – משלימים את השמירה שחיכתה */
+  const finishPendingPlaylist = () => {
+    const pending = takePendingPlaylist()
+    if (!pending) return
+    setNotice({ text: 'שומר את הפלייליסט…' })
+    createSummaryPlaylist(pending)
+      .then((r) => setNotice({ text: `✓ הפלייליסט "${pending.name}" נשמר עם ${r.count} שירים`, url: r.url }))
+      .catch((e) => setNotice({ text: e instanceof Error ? e.message : String(e), error: true }))
+  }
 
   const afterLogin = () => {
+    finishPendingPlaylist()
     const saved = loadGame()
     setView(saved ? { name: 'game', game: saved, queue: null, key: Date.now() } : { name: 'setup' })
   }
@@ -76,6 +89,20 @@ export default function App() {
       )
     case 'setup':
       return (
+        <>
+        {notice && (
+          <div className={`mx-auto mt-3 max-w-md rounded-2xl p-3 text-center ${notice.error ? 'bg-red-500/20 text-red-200' : 'bg-[#1db954]/20 text-green-200'}`}>
+            {notice.text}
+            {notice.url && (
+              <a href={notice.url} target="_blank" rel="noreferrer" className="ms-2 underline">
+                פתיחה בספוטיפיי
+              </a>
+            )}
+            <button onClick={() => setNotice(null)} className="ms-3 opacity-70" aria-label="סגירה">
+              ✕
+            </button>
+          </div>
+        )}
         <Setup
           playback={playback}
           onStart={(game, queue) => setView({ name: 'game', game, queue, key: Date.now() })}
@@ -83,6 +110,7 @@ export default function App() {
           onHighScores={() => setView({ name: 'highscores' })}
           onLogout={doLogout}
         />
+        </>
       )
     case 'highscores':
       return <HighScores onBack={() => setView({ name: 'setup' })} />

@@ -4,6 +4,7 @@ import type { GameState } from '../game/game'
 import Timeline from '../components/Timeline'
 import Podium from '../components/Podium'
 import StatsPanel from '../components/StatsPanel'
+import EndActions from '../components/EndActions'
 
 export default function GameOver({ game, onNewGame, onRematch }: { game: GameState; onNewGame: () => void; onRematch: () => void }) {
   const [step, setStep] = useState<'podium' | 'stats'>('podium')
@@ -35,6 +36,15 @@ export default function GameOver({ game, onNewGame, onRematch }: { game: GameSta
           </ol>
         )}
         <div className={`mt-auto space-y-2 transition-opacity ${podiumDone ? '' : 'pointer-events-none opacity-0'}`}>
+          <EndActions
+            usedIds={game.usedIds}
+            card={{
+              title: winner ? `${winner.name} ניצח/ה!` : 'המשחק נגמר',
+              score: `${(winner ?? order[0]).timeline.length} שירים בציר`,
+              subtitle: `מצב קלאסי · ${game.players.length} שחקנים · ${new Date().toLocaleDateString('he-IL')}`,
+              timeline: (winner ?? order[0]).timeline,
+            }}
+          />
           <button onClick={() => setStep('stats')} className="w-full rounded-2xl bg-violet-500 py-4 text-xl font-black active:scale-95">
             📊 סטטיסטיקות וצירים
           </button>

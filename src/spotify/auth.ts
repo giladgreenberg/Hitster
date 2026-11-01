@@ -17,12 +17,15 @@ export const SCOPES = [
   'user-modify-playback-state', // נגן / השהה במכשיר
   'playlist-read-private', // הפלייליסטים שלי
   'playlist-read-collaborative',
+  'playlist-modify-private', // שמירת פלייליסט סיכום בסוף משחק
 ]
 
 interface StoredToken {
   accessToken: string
   refreshToken: string
   expiresAt: number // ms since epoch
+  /** ההרשאות שהמשתמש אישר (חסר בטוקנים ישנים) */
+  scope?: string
 }
 
 export function getClientId(): string {
@@ -76,13 +79,14 @@ export async function startLogin() {
   window.location.assign(`${AUTH_URL}?${params}`)
 }
 
-function saveToken(json: { access_token: string; refresh_token?: string; expires_in: number }) {
+function saveToken(json: { access_token: string; refresh_token?: string; expires_in: number; scope?: string }) {
   const prev = loadToken()
   const token: StoredToken = {
     accessToken: json.access_token,
     // ספוטיפיי לא תמיד מחזיר refresh_token חדש ברענון – אז שומרים את הקודם
     refreshToken: json.refresh_token ?? prev?.refreshToken ?? '',
     expiresAt: Date.now() + json.expires_in * 1000,
+    scope: json.scope ?? prev?.scope,
   }
   localStorage.setItem(TOKEN_KEY, JSON.stringify(token))
 }
@@ -165,4 +169,9 @@ export function isLoggedIn(): boolean {
 
 export function logout() {
   localStorage.removeItem(TOKEN_KEY)
+}
+
+/** האם ההתחברות הנוכחית כוללת הרשאה מסוימת (התחברות ישנה = לא) */
+export function hasScope(scope: string): boolean {
+  return (loadToken()?.scope ?? '').split(' ').includes(scope)
 }

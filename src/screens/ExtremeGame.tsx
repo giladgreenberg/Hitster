@@ -12,6 +12,7 @@ import PlayerControls from '../components/PlayerControls'
 import Lives from '../components/Lives'
 import Podium from '../components/Podium'
 import StatsPanel from '../components/StatsPanel'
+import EndActions from '../components/EndActions'
 import YearGuess, { ExactGuessResult } from '../components/YearGuess'
 import { parseYearGuess } from '../game/bonus'
 
@@ -94,6 +95,15 @@ export default function ExtremeGame({ initial, initialQueue, playback, onNewGame
             הציר המשותף הגיע ל-{game.timeline.length} שירים אחרי {game.turn} תורות
           </p>
           <div className={`mt-auto space-y-2 transition-opacity ${podiumDone ? '' : 'pointer-events-none opacity-0'}`}>
+            <EndActions
+              usedIds={game.usedIds}
+              card={{
+                title: w ? `${w.name} ניצחו!` : 'תיקו!',
+                score: `ציר משותף של ${game.timeline.length} שירים`,
+                subtitle: `מצב אקסטרים · ${game.teams[0].name} נגד ${game.teams[1].name}`,
+                timeline: game.timeline,
+              }}
+            />
             <button onClick={() => setEndStep('stats')} className="w-full rounded-2xl bg-violet-500 py-4 text-xl font-black active:scale-95">
               📊 סטטיסטיקות והציר המשותף
             </button>
