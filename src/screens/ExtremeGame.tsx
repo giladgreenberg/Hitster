@@ -11,6 +11,8 @@ import FlipCard from '../components/FlipCard'
 import PlayerControls from '../components/PlayerControls'
 import Lives from '../components/Lives'
 import Confetti from '../components/Confetti'
+import YearGuess, { ExactGuessResult } from '../components/YearGuess'
+import { parseYearGuess } from '../game/bonus'
 
 interface Props {
   initial: ExtremeState
@@ -28,6 +30,12 @@ export default function ExtremeGame({ initial, initialQueue, playback, onNewGame
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [menu, setMenu] = useState(false)
+  const [guess, setGuess] = useState('')
+  const exactOn = game.settings.exactYear !== false
+  // שיר חדש = שדה ניחוש ריק
+  useEffect(() => setGuess(''), [game.song?.id])
+  // "השמעת קטע בלבד"
+  useEffect(() => playback.setClipSeconds(game.settings.playLimit ?? 0), [game.settings.playLimit, playback.setClipSeconds])
 
   if (!queueRef.current) queueRef.current = createSongQueue(game.settings.source, game.usedIds, 4)
   useEffect(() => queueRef.current?.warmUp(), [])
@@ -170,6 +178,15 @@ export default function ExtremeGame({ initial, initialQueue, playback, onNewGame
             </div>
           )}
 
+          {revealed && result && game.song && (
+            <ExactGuessResult
+              guess={exactOn ? parseYearGuess(guess) : null}
+              year={game.song.year}
+              hit={result.exactHit}
+              reward={result.lifeRestored ? '❤️ חזר לב!' : 'כל הכבוד! (הלבבות כבר מלאים)'}
+            />
+          )}
+
           <div>
             {!revealed && <p className="text-center text-violet-200">{game.slot === null ? `👇 ${team.name}, לחצו על + במקום הנכון בציר` : 'אפשר לשנות מיקום'}</p>}
             <Timeline
@@ -182,9 +199,10 @@ export default function ExtremeGame({ initial, initialQueue, playback, onNewGame
             />
           </div>
 
+          {!revealed && exactOn && <YearGuess value={guess} onChange={setGuess} reward="❤️ חוזר לב שאבד" />}
           {!revealed && (
             <button
-              onClick={() => dispatch({ type: 'reveal', at: Date.now() })}
+              onClick={() => dispatch({ type: 'reveal', at: Date.now(), exactGuess: exactOn ? parseYearGuess(guess) : null })}
               disabled={game.slot === null || loading}
               className="w-full rounded-2xl bg-violet-500 py-5 text-2xl font-black shadow-xl active:scale-95 disabled:opacity-40"
             >

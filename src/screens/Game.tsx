@@ -10,6 +10,8 @@ import Timeline from '../components/Timeline'
 import FlipCard from '../components/FlipCard'
 import PlayerControls from '../components/PlayerControls'
 import Scoreboard from '../components/Scoreboard'
+import YearGuess, { ExactGuessResult } from '../components/YearGuess'
+import { parseYearGuess } from '../game/bonus'
 import GameOver from './GameOver'
 
 interface Props {
@@ -28,6 +30,12 @@ export default function Game({ initial, initialQueue, playback, onNewGame, onRem
   const [outOfSongs, setOutOfSongs] = useState(false)
   const [showScores, setShowScores] = useState(false)
   const [menu, setMenu] = useState(false)
+  const [guess, setGuess] = useState('')
+  const exactOn = game.settings.exactYear !== false
+  // שיר חדש = שדה ניחוש ריק
+  useEffect(() => setGuess(''), [game.song?.id])
+  // "השמעת קטע בלבד"
+  useEffect(() => playback.setClipSeconds(game.settings.playLimit ?? 0), [game.settings.playLimit, playback.setClipSeconds])
 
   // תור שירים: אם חזרנו ממשחק שמור – יוצרים חדש ומסמנים את השירים שכבר היו
   if (!queueRef.current) queueRef.current = createSongQueue(game.settings.source, game.usedIds, 4)
@@ -65,7 +73,7 @@ export default function Game({ initial, initialQueue, playback, onNewGame, onRem
     }
   }
 
-  const reveal = () => dispatch({ type: 'reveal' })
+  const reveal = () => dispatch({ type: 'reveal', at: Date.now(), exactGuess: exactOn ? parseYearGuess(guess) : null })
 
   const next = () => {
     playback.stop()
@@ -172,6 +180,10 @@ export default function Game({ initial, initialQueue, playback, onNewGame, onRem
             </div>
           )}
 
+          {revealed && result && result.how === 'placed' && game.song && (
+            <ExactGuessResult guess={result.exactGuess} year={game.song.year} hit={!!result.exactHit} reward={game.settings.guessBonus ? '+🪙 אסימון' : 'כל הכבוד!'} />
+          )}
+
           {revealed && result?.challenge && (
             <div className={`pop-in rounded-2xl p-3 text-center text-lg ${result.challenge.wonCard ? 'bg-amber-500/25 text-amber-100' : 'bg-white/5 text-violet-200'}`}>
               {result.challenge.wonCard
@@ -244,6 +256,7 @@ export default function Game({ initial, initialQueue, playback, onNewGame, onRem
           {game.phase === 'listen' && (
             <>
               {game.settings.guessBonus && <p className="text-center text-sm text-violet-300">💡 אמרו בקול את שם השיר והאמן לפני החשיפה – ניחוש נכון = 🪙</p>}
+              {exactOn && <YearGuess value={guess} onChange={setGuess} reward={game.settings.guessBonus ? '+🪙 אסימון' : 'כבוד 😎'} />}
               {eligibleChallengers(game).length > 0 ? (
                 <button
                   onClick={() => dispatch({ type: 'lockIn' })}

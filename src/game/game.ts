@@ -10,6 +10,7 @@ import type { Song } from '../songs/types'
 import type { SourceConfig } from '../songs/sources'
 import { isPlacementCorrect } from './rules'
 import { makeEvent, type GameEvent } from './events'
+import { exactYearHit } from './bonus'
 import type { GameMode } from './modes'
 
 export const START_TOKENS = 2
@@ -63,6 +64,9 @@ export interface TurnResult {
   guessed: boolean | null
   /** תוצאת האתגר, אם היה */
   challenge: { player: number; correct: boolean; wonCard: boolean } | null
+  /** קלע לשנה המדויקת (עם מיקום נכון) – אסימון בונוס */
+  exactHit?: boolean
+  exactGuess?: number | null
 }
 
 export interface GameState {
@@ -90,7 +94,7 @@ export type Action =
   | { type: 'lockIn' }
   | { type: 'challenger'; player: number | null }
   | { type: 'challengeSlot'; slot: number }
-  | { type: 'reveal'; at?: number }
+  | { type: 'reveal'; at?: number; exactGuess?: number | null }
   | { type: 'guess'; correct: boolean }
   | { type: 'skip'; song: Song }
   | { type: 'buy' }
@@ -198,7 +202,14 @@ export function gameReducer(state: GameState, action: Action): GameState {
       const slot = state.slot
       const ys = yearsOf(player)
       const correct = isPlacementCorrect(ys, slot, song.year)
-      let players = correct ? mapPlayer(state.players, state.current, (p) => ({ ...p, timeline: insertAt(p.timeline, slot, song) })) : state.players
+      // שנה מדויקת: אסימון נוסף – רק אם גם המיקום נכון (המיקום הוא העיקר)
+      const exactHit = correct && exactYearHit(action.exactGuess, song.year)
+      let players = correct
+        ? mapPlayer(state.players, state.current, (p) => {
+            const placed = { ...p, timeline: insertAt(p.timeline, slot, song) }
+            return exactHit && tokensOn ? addTokens(placed, 1) : placed
+          })
+        : state.players
 
       // אתגר (רק אם המאתגר באמת בחר מקום)
       let challenge: TurnResult['challenge'] = null
@@ -214,7 +225,10 @@ export function gameReducer(state: GameState, action: Action): GameState {
       }
 
       const events: GameEvent[] = [
-        makeEvent({ turn: state.turn, actor: player.name, actorIndex: state.current, song, years: ys, slot, correct, how: 'placed', startedAt: state.turnStartedAt, at: action.at }),
+        makeEvent({
+          turn: state.turn, actor: player.name, actorIndex: state.current, song, years: ys, slot, correct, how: 'placed',
+          exactGuess: action.exactGuess ?? null, exactHit, startedAt: state.turnStartedAt, at: action.at,
+        }),
       ]
       if (ch && ch.slot !== null && challenge) {
         events.push(
@@ -227,7 +241,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         phase: 'reveal',
         players,
         events: [...(state.events ?? []), ...events],
-        result: { how: 'placed', correct, guessed: tokensOn ? null : false, challenge },
+        result: { how: 'placed', correct, guessed: tokensOn ? null : false, challenge, exactHit, exactGuess: action.exactGuess ?? null },
       }
       return { ...next, winner: checkWinner(next) }
     }
@@ -282,7 +296,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
       const r = state.result
       let players = mapPlayer(state.players, state.current, (p) => ({
         ...p,
-        tokens: Math.min(MAX_TOKENS, p.tokens + (r?.how === 'bought' ? BUY_COST : 0)),
+        tokens: Math.max(0, Math.min(MAX_TOKENS, p.tokens + (r?.how === 'bought' ? BUY_COST : 0) - (r?.exactHit && tokensOn ? 1 : 0))),
         timeline: p.timeline.filter((s) => s.id !== bad.id),
       }))
       if (r?.challenge) {

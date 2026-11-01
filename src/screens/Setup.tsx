@@ -5,7 +5,7 @@ import { GENRES } from '../songs/genres'
 import type { SongQueue } from '../songs/queue'
 import type { Settings } from '../game/game'
 import { startGame, type AnyGame } from '../game/startGame'
-import { DEFAULT_SOLO_SECONDS, SOLO_SECONDS_OPTIONS, type GameMode } from '../game/modes'
+import { CLIP_SECONDS, DEFAULT_SOLO_SECONDS, DIFFICULTIES, SOLO_SECONDS_OPTIONS, type Difficulty, type GameMode } from '../game/modes'
 import ModePicker from '../components/ModePicker'
 import { loadSettings, saveSettings } from '../game/storage'
 import OutputPicker from '../components/OutputPicker'
@@ -41,6 +41,9 @@ export default function Setup({ playback, onStart, onDebug, onHighScores, onLogo
   const [fromYear, setFrom] = useState(saved?.source.kind === 'random' ? saved.source.fromYear : 1970)
   const [toYear, setTo] = useState(saved?.source.kind === 'random' ? saved.source.toYear : thisYear)
   const [genres, setGenres] = useState<string[]>(saved?.source.kind === 'random' ? saved.source.genres : ['pop', 'rock'])
+  const [difficulty, setDifficulty] = useState<Difficulty>(saved?.source.kind === 'random' ? (saved.source.difficulty ?? 'medium') : 'medium')
+  const [exactYear, setExactYear] = useState<boolean>(saved?.exactYear ?? true)
+  const [clipOnly, setClipOnly] = useState<boolean>((saved?.playLimit ?? 0) > 0)
   const [playlistIds, setPlaylistIds] = useState<string[]>(saved?.source.kind === 'playlists' ? saved.source.playlistIds : [])
   const [target, setTarget] = useState(saved?.targetSongs ?? 10)
   const [randomStart, setRandomStart] = useState(saved?.randomStart ?? false)
@@ -72,7 +75,9 @@ export default function Setup({ playback, onStart, onDebug, onHighScores, onLogo
       soloName: soloName.trim() || 'שחקן',
       teams: [teams[0].trim() || 'קבוצה א', teams[1].trim() || 'קבוצה ב'],
       players: names,
-      source: kind === 'random' ? { kind, fromYear, toYear, genres } : { kind, playlistIds },
+      source: kind === 'random' ? { kind, fromYear, toYear, genres, difficulty } : { kind, playlistIds },
+      exactYear,
+      playLimit: clipOnly ? CLIP_SECONDS : 0,
       targetSongs: Math.max(2, Math.min(50, target)),
       randomStart,
       guessBonus,
@@ -186,6 +191,19 @@ export default function Setup({ playback, onStart, onDebug, onHighScores, onLogo
 
         {kind === 'random' && (
           <>
+            <div className="text-sm text-violet-300">רמת קושי</div>
+            <div className="grid grid-cols-3 gap-2">
+              {DIFFICULTIES.map((d) => (
+                <button
+                  key={d.id}
+                  onClick={() => setDifficulty(d.id)}
+                  className={`rounded-xl px-2 py-2 ${difficulty === d.id ? 'bg-green-500 font-bold text-black' : 'bg-white/10'}`}
+                >
+                  <span className="block text-lg">{d.title}</span>
+                  <span className={`block text-[11px] leading-tight ${difficulty === d.id ? 'text-black/70' : 'text-violet-300'}`}>{d.desc}</span>
+                </button>
+              ))}
+            </div>
             <div className="flex gap-2">
               <label className="flex-1">
                 <span className="text-sm text-violet-300">משנה</span>
@@ -266,6 +284,22 @@ export default function Setup({ playback, onStart, onDebug, onHighScores, onLogo
           <input type="checkbox" checked={guessBonus} onChange={(e) => setGuessBonus(e.target.checked)} className="h-6 w-6 shrink-0" />
         </label>
         )}
+        <label className="flex items-center justify-between gap-3 text-lg">
+          <span>
+            🎯 ניחוש שנה מדויקת
+            <span className="block text-xs text-violet-400">
+              שדה לא חובה לפני החשיפה. קליעה + מיקום נכון = {mode === 'solo' ? 'נקודה נוספת' : mode === 'extreme' ? 'חוזר לב שאבד' : 'אסימון נוסף'}
+            </span>
+          </span>
+          <input type="checkbox" checked={exactYear} onChange={(e) => setExactYear(e.target.checked)} className="h-6 w-6 shrink-0" />
+        </label>
+        <label className="flex items-center justify-between gap-3 text-lg">
+          <span>
+            🎧 השמעת קטע של {CLIP_SECONDS} שניות בלבד
+            <span className="block text-xs text-violet-400">מכל שיר שומעים רק קטע קבוע. אפשר לנגן אותו שוב כמה פעמים שרוצים</span>
+          </span>
+          <input type="checkbox" checked={clipOnly} onChange={(e) => setClipOnly(e.target.checked)} className="h-6 w-6 shrink-0" />
+        </label>
         <label className="flex items-center justify-between gap-3 text-lg">
           <span>
             התחלה מנקודה אקראית בשיר

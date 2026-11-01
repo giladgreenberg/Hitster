@@ -8,7 +8,7 @@ import type { Song } from './types'
 
 export type ResolveResult = { ok: true; song: Song } | { ok: false; reason: string }
 
-export async function resolveSong(track: SpotifyTrack): Promise<ResolveResult> {
+export async function resolveSong(track: SpotifyTrack, needReleases = false): Promise<ResolveResult> {
   // שירים מפלייליסט/חיפוש לפעמים מגיעים בלי external_ids – אז שולפים את השיר המלא
   let t = track
   if (!t.external_ids) {
@@ -23,7 +23,7 @@ export async function resolveSong(track: SpotifyTrack): Promise<ResolveResult> {
 
   const spotifyYear = parseYear(t.album?.release_date)
   const isrc = t.external_ids?.isrc ?? null
-  const mb = isrc ? await lookupOriginalYear(isrc) : { year: null, status: 'אין ISRC' }
+  const mb = isrc ? await lookupOriginalYear(isrc, needReleases) : { year: null, releases: null, status: 'אין ISRC' }
   const mbYear = mb.year
 
   let year: number
@@ -61,6 +61,7 @@ export async function resolveSong(track: SpotifyTrack): Promise<ResolveResult> {
       year,
       yearSource,
       mbStatus: mb.status,
+      mbReleases: mb.releases,
     },
   }
 }

@@ -3,6 +3,7 @@
 import { getPlaylistTracks, searchTracks, type SpotifyTrack } from '../spotify/api'
 import { getBlacklist } from './blacklist'
 import { resolveSong } from './resolveSong'
+import { offsetRange, passesDifficulty } from './difficulty'
 import type { Song } from './types'
 import type { Difficulty } from '../game/modes'
 
@@ -57,6 +58,7 @@ export class RandomSearchSource implements CandidateSource {
     private fromYear: number,
     private toYear: number,
     genres: string[],
+    private difficulty: Difficulty = 'medium',
   ) {
     this.genres = [...genres]
   }
@@ -88,13 +90,18 @@ export class RandomSearchSource implements CandidateSource {
 
     // ספוטיפיי מאפשר offset עד 1000, ובכל בקשה עד 10 תוצאות.
     // בפעם הראשונה לכל שאילתה לומדים כמה תוצאות יש, ואז מגרילים offset בטווח.
+    // הטווח שממנו מגרילים תלוי ברמת הקושי (קל = התוצאות הראשונות = הכי מוכרות)
     const known = this.totals.get(q)
-    let offset = known === undefined ? 0 : randInt(0, Math.max(0, Math.min(known, 1000) - 10))
+    const pickOffset = (total: number) => {
+      const [lo, hi] = offsetRange(this.difficulty, total)
+      return randInt(lo, Math.max(lo, hi))
+    }
+    let offset = known === undefined ? 0 : pickOffset(known)
     let page = await searchTracks(q, offset)
     this.totals.set(q, page.total)
     if (known === undefined && page.total > 10) {
-      // עכשיו כשיודעים כמה יש – מגרילים עמוד אקראי (כדי לגוון, לא תמיד הלהיטים הראשונים)
-      offset = randInt(0, Math.max(0, Math.min(page.total, 1000) - 10))
+      // עכשיו כשיודעים כמה יש – מגרילים עמוד בטווח של רמת הקושי
+      offset = pickOffset(page.total)
       if (offset >= 10) page = await searchTracks(q, offset)
     }
 
@@ -118,7 +125,7 @@ export function createSongSource(config: SourceConfig, log: SourceLog = () => {}
   const inner: CandidateSource =
     config.kind === 'playlists'
       ? new PlaylistSource(config.playlistIds)
-      : new RandomSearchSource(config.fromYear, config.toYear, config.genres)
+      : new RandomSearchSource(config.fromYear, config.toYear, config.genres, config.difficulty ?? 'medium')
   const used = new Set<string>()
   // בפלייליסט ממשיכים עד שהוא נגמר; באקראי – מספר ניסיונות גדול ואז שגיאה (לא "נגמר")
   const maxAttempts = config.kind === 'playlists' ? Infinity : 80
@@ -137,7 +144,13 @@ export function createSongSource(config: SourceConfig, log: SourceLog = () => {}
         if (t === undefined) continue
         if (used.has(t.id) || blacklist.has(t.id)) continue
         used.add(t.id)
-        const r = await resolveSong(t)
+        const difficulty = config.kind === 'random' ? config.difficulty : undefined
+        const needReleases = difficulty === 'easy' || difficulty === 'hard'
+        const r = await resolveSong(t, needReleases)
+        if (r.ok && needReleases && !passesDifficulty(difficulty, r.song.mbReleases)) {
+          log(`✗ דילוג: ${t.name} – לא מתאים לרמת הקושי (${r.song.mbReleases ?? '?'} הוצאות)`)
+          continue
+        }
         if (r.ok) {
           log(`✓ ${t.name} – ${r.song.year} (${r.song.yearSource === 'musicbrainz' ? 'MusicBrainz' : 'ספוטיפיי'})`)
           return r.song

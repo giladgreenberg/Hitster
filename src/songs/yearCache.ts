@@ -30,3 +30,31 @@ export function setCachedYear(isrc: string, year: number | null) {
     /* המקום נגמר – לא נורא */
   }
 }
+
+// מספר ההוצאות (releases) של כל ISRC ב-MusicBrainz – סימן לכמה השיר מוכר (להיטים יוצאים בהרבה אוספים)
+const REL_KEY = 'hitster.releaseCache.v1'
+let relMem: Record<string, number> | null = null
+
+function loadRel(): Record<string, number> {
+  if (relMem) return relMem
+  try {
+    relMem = JSON.parse(localStorage.getItem(REL_KEY) ?? '{}') as Record<string, number>
+  } catch {
+    relMem = {}
+  }
+  return relMem
+}
+
+export function getCachedReleases(isrc: string): number | undefined {
+  return loadRel()[isrc]
+}
+
+export function setCachedReleases(isrc: string, count: number) {
+  const c = loadRel()
+  c[isrc] = count
+  try {
+    localStorage.setItem(REL_KEY, JSON.stringify(c))
+  } catch {
+    /* ignore */
+  }
+}

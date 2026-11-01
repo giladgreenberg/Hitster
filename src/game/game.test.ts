@@ -269,4 +269,50 @@ describe('gameReducer', () => {
     s = gameReducer(s, { type: 'wrongYear', song: song(1985) })
     expect(s.events).toHaveLength(0)
   })
+
+  describe('ניחוש שנה מדויקת', () => {
+    const reveal = (year: number, slot: number, exactGuess: number | null, over?: Partial<Settings>) => {
+      let s = gameReducer(start(over), { type: 'beginTurn', song: song(year) })
+      s = gameReducer(s, { type: 'select', slot })
+      return gameReducer(s, { type: 'reveal', exactGuess })
+    }
+
+    it('מיקום נכון + שנה מדויקת = אסימון נוסף', () => {
+      const s = reveal(1990, 1, 1990)
+      expect(s.result?.exactHit).toBe(true)
+      expect(s.players[0].tokens).toBe(3)
+    })
+
+    it('נוסף על אסימון הניחוש של שם ואמן (סה"כ 2), ועד 5 לכל היותר', () => {
+      let s = gameReducer(reveal(1990, 1, 1990), { type: 'guess', correct: true })
+      expect(s.players[0].tokens).toBe(4)
+      let full = withTokens(start(), 0, 5)
+      full = gameReducer(full, { type: 'beginTurn', song: song(1990) })
+      full = gameReducer(gameReducer(full, { type: 'select', slot: 1 }), { type: 'reveal', exactGuess: 1990 })
+      expect(full.players[0].tokens).toBe(5)
+    })
+
+    it('מיקום שגוי – אין בונוס גם אם השנה מדויקת', () => {
+      const s = reveal(1990, 0, 1990)
+      expect(s.result).toMatchObject({ correct: false, exactHit: false })
+      expect(s.players[0].tokens).toBe(2)
+    })
+
+    it('שנה לא מדויקת או בלי ניחוש – אין בונוס', () => {
+      expect(reveal(1990, 1, 1991).players[0].tokens).toBe(2)
+      expect(reveal(1990, 1, null).players[0].tokens).toBe(2)
+    })
+
+    it('אסימונים כבויים – נרשם שקלע, אבל אין אסימון', () => {
+      const s = reveal(1990, 1, 1990, { guessBonus: false })
+      expect(s.result?.exactHit).toBe(true)
+      expect(s.players[0].tokens).toBe(0)
+    })
+
+    it('"השנה שגויה" מבטל גם את אסימון השנה המדויקת', () => {
+      let s = reveal(1990, 1, 1990)
+      s = gameReducer(s, { type: 'wrongYear', song: song(1985) })
+      expect(s.players[0].tokens).toBe(2)
+    })
+  })
 })

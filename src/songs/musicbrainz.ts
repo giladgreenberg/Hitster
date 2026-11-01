@@ -2,7 +2,7 @@
 // כללי MusicBrainz: לכל היותר בקשה אחת לשנייה, ו-User-Agent מזהה עם פרטי קשר.
 // https://musicbrainz.org/doc/MusicBrainz_API/Rate_Limiting
 
-import { getCachedYear, setCachedYear } from './yearCache'
+import { getCachedReleases, getCachedYear, setCachedReleases, setCachedYear } from './yearCache'
 import { parseYear } from './filters'
 
 const BASE = 'https://musicbrainz.org/ws/2'
@@ -44,7 +44,7 @@ async function mbFetch(url: string): Promise<Response> {
 interface MbIsrcResponse {
   recordings?: {
     'first-release-date'?: string
-    releases?: { date?: string }[]
+    releases?: { id?: string; date?: string }[]
   }[]
 }
 
@@ -61,8 +61,18 @@ export function earliestYearFromIsrcResponse(json: MbIsrcResponse): number | nul
   return best
 }
 
+/** כמה הוצאות שונות (אלבומים, סינגלים, אוספים) יש להקלטה – סימן לפופולריות */
+export function releaseCountFromIsrcResponse(json: MbIsrcResponse): number {
+  const ids = new Set<string>()
+  let anon = 0
+  for (const rec of json.recordings ?? []) for (const r of rec.releases ?? []) r.id ? ids.add(r.id) : anon++
+  return ids.size + anon
+}
+
 export interface MbLookup {
   year: number | null
+  /** מספר ההוצאות ב-MusicBrainz (null = לא ידוע) */
+  releases: number | null
   /** תיאור קצר של מה שקרה – להצגה במסך הבדיקה */
   status: string
 }
@@ -71,10 +81,14 @@ export interface MbLookup {
  * מחזיר את השנה המקורית לפי MusicBrainz (year=null אם אין מידע), ותיאור של מה שקרה.
  * תוצאות נשמרות במטמון (localStorage) כדי לא לחפש פעמיים.
  */
-export async function lookupOriginalYear(isrc: string): Promise<MbLookup> {
+export async function lookupOriginalYear(isrc: string, needReleases = false): Promise<MbLookup> {
   const key = isrc.toUpperCase()
   const cached = getCachedYear(key)
-  if (cached !== undefined) return { year: cached, status: cached === null ? 'לא נמצא (מהמטמון)' : 'נמצא (מהמטמון)' }
+  const cachedRel = getCachedReleases(key) ?? null
+  // מהמטמון – אלא אם צריך את מספר ההוצאות ועוד אין אותו (שנים שנשמרו לפני שהתחלנו לשמור אותו)
+  if (cached !== undefined && (cached === null || !needReleases || cachedRel !== null)) {
+    return { year: cached, releases: cached === null ? 0 : cachedRel, status: cached === null ? 'לא נמצא (מהמטמון)' : 'נמצא (מהמטמון)' }
+  }
 
   const url = `${BASE}/isrc/${encodeURIComponent(key)}?inc=releases&fmt=json`
   let lastStatus = ''
@@ -84,21 +98,24 @@ export async function lookupOriginalYear(isrc: string): Promise<MbLookup> {
       res = await throttled(() => mbFetch(url))
     } catch (e) {
       // בעיית רשת/CORS – לא שומרים במטמון, אולי בפעם הבאה יצליח
-      return { year: null, status: `שגיאת רשת: ${e instanceof Error ? e.message : String(e)}` }
+      return { year: null, releases: null, status: `שגיאת רשת: ${e instanceof Error ? e.message : String(e)}` }
     }
     if (res.status === 404) {
       setCachedYear(key, null)
-      return { year: null, status: 'ה-ISRC לא קיים במאגר (404)' }
+      return { year: null, releases: 0, status: 'ה-ISRC לא קיים במאגר (404)' }
     }
     if (res.status === 503 || res.status === 429) {
       lastStatus = `עומס (${res.status})`
       await sleep(2000 * (attempt + 1)) // חרגנו מהקצב – מחכים ומנסים שוב
       continue
     }
-    if (!res.ok) return { year: null, status: `שגיאה ${res.status}` }
-    const year = earliestYearFromIsrcResponse(await res.json())
+    if (!res.ok) return { year: null, releases: null, status: `שגיאה ${res.status}` }
+    const json = await res.json()
+    const year = earliestYearFromIsrcResponse(json)
+    const releases = releaseCountFromIsrcResponse(json)
     setCachedYear(key, year)
-    return { year, status: year === null ? 'נמצא אבל בלי תאריך' : `נמצא: ${year}` }
+    setCachedReleases(key, releases)
+    return { year, releases, status: year === null ? 'נמצא אבל בלי תאריך' : `נמצא: ${year} (${releases} הוצאות)` }
   }
-  return { year: null, status: lastStatus || 'נכשל' }
+  return { year: null, releases: null, status: lastStatus || 'נכשל' }
 }

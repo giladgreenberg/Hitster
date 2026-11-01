@@ -11,6 +11,8 @@ import Timeline from '../components/Timeline'
 import FlipCard from '../components/FlipCard'
 import PlayerControls from '../components/PlayerControls'
 import Countdown from '../components/Countdown'
+import YearGuess, { ExactGuessResult } from '../components/YearGuess'
+import { parseYearGuess } from '../game/bonus'
 import Confetti from '../components/Confetti'
 import { ScoreTable } from './HighScores'
 
@@ -26,6 +28,12 @@ export default function SoloGame({ initial, initialQueue, playback, onNewGame, o
   const [game, dispatch] = useReducer(soloReducer, initial)
   const queueRef = useRef<SongQueue | null>(initialQueue)
   const [loading, setLoading] = useState(false)
+  const [guess, setGuess] = useState('')
+  const exactOn = game.settings.exactYear !== false
+  // שיר חדש = שדה ניחוש ריק
+  useEffect(() => setGuess(''), [game.song?.id])
+  // "השמעת קטע בלבד"
+  useEffect(() => playback.setClipSeconds(game.settings.playLimit ?? 0), [game.settings.playLimit, playback.setClipSeconds])
   const [error, setError] = useState<string | null>(null)
   const [final, setFinal] = useState<{ rank: number | null; isRecord: boolean; overallRank: number | null; overallRecord: boolean; date: string } | null>(null)
   const category = categoryOf(game.settings)
@@ -67,7 +75,7 @@ export default function SoloGame({ initial, initialQueue, playback, onNewGame, o
     dispatch({ type: 'timeout', at: Date.now() })
   }, [playback])
 
-  const reveal = () => dispatch({ type: 'reveal', at: Date.now() })
+  const reveal = () => dispatch({ type: 'reveal', at: Date.now(), exactGuess: exactOn ? parseYearGuess(guess) : null })
 
   const finish = () => {
     playback.stop()
@@ -168,6 +176,10 @@ export default function SoloGame({ initial, initialQueue, playback, onNewGame, o
             </div>
           )}
 
+          {revealed && result && !result.timeout && game.song && (
+            <ExactGuessResult guess={exactOn ? parseYearGuess(guess) : null} year={game.song.year} hit={result.exactHit} reward="+1 נקודה בונוס" />
+          )}
+
           {game.phase === 'listen' ? (
             <div>
               <p className="text-center text-violet-200">{game.slot === null ? '👇 לחצו על + כדי למקם את השיר' : 'אפשר לשנות מיקום'}</p>
@@ -177,6 +189,7 @@ export default function SoloGame({ initial, initialQueue, playback, onNewGame, o
             <Timeline timeline={game.timeline} highlightId={result?.correct ? game.song?.id : null} />
           )}
 
+          {game.phase === 'listen' && exactOn && <YearGuess value={guess} onChange={setGuess} reward="+1 נקודה בונוס" />}
           {game.phase === 'listen' && (
             <button
               onClick={reveal}

@@ -13,6 +13,8 @@ export interface Song {
   /** השנה שבה משתמשים במשחק */
   year: number
   yearSource: 'musicbrainz' | 'spotify'
+  /** מספר ההוצאות ב-MusicBrainz (סימן לפופולריות; null = לא ידוע) */
+  mbReleases?: number | null
   /** מה MusicBrainz ענה (לאבחון) */
   mbStatus: string
 }

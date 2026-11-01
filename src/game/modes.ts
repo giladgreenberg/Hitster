@@ -17,6 +17,6 @@ export const DIFFICULTIES: { id: Difficulty; title: string; desc: string }[] = [
 
 export const SOLO_SECONDS_OPTIONS = [15, 30, 45, 60]
 export const DEFAULT_SOLO_SECONDS = 30
-export const PLAY_LIMIT_OPTIONS = [10, 20, 30]
-export const DEFAULT_PLAY_LIMIT = 20
+/** אורך הקטע כשמפעילים "השמעת קטע בלבד" */
+export const CLIP_SECONDS = 20
 export const EXTREME_LIVES = 3

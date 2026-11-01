@@ -26,6 +26,53 @@ export function usePlayback() {
   const [browserReady, setBrowserReady] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
 
+  // ---------- "השמעת קטע בלבד": כל השמעה היא קטע קבוע (למשל 20 שניות) מאותה נקודת התחלה ----------
+  const [clipMs, setClipMs] = useState(0)
+  const clip = useRef<{ remaining: number; startedAt: number | null; timer: ReturnType<typeof setTimeout> | null }>({ remaining: 0, startedAt: null, timer: null })
+  /** למסך: מתי הקטע ייגמר (אם מתנגן), וכמה נשאר (אם מושהה) */
+  const [clipView, setClipView] = useState<{ endsAt: number | null; remaining: number } | null>(null)
+
+  const clipClear = () => {
+    if (clip.current.timer) clearTimeout(clip.current.timer)
+    clip.current.timer = null
+  }
+
+  /** מתחיל לספור את הקטע. fromStart = השמעה חדשה / נגן שוב (קטע מלא), אחרת – המשך מהיכן שעצרנו */
+  const clipRun = (dev: string, fromStart: boolean) => {
+    if (!clipMs) return
+    clipClear()
+    const remaining = fromStart ? clipMs : clip.current.remaining
+    const now = Date.now()
+    clip.current = {
+      remaining,
+      startedAt: now,
+      timer: setTimeout(() => {
+        clip.current = { remaining: 0, startedAt: null, timer: null }
+        setClipView({ endsAt: null, remaining: 0 })
+        setPlaying(false)
+        apiPause(dev).catch(() => {})
+      }, remaining),
+    }
+    setClipView({ endsAt: now + remaining, remaining })
+  }
+
+  const clipPause = () => {
+    if (!clipMs || clip.current.startedAt === null) return
+    clipClear()
+    const remaining = Math.max(0, clip.current.remaining - (Date.now() - clip.current.startedAt))
+    clip.current = { remaining, startedAt: null, timer: null }
+    setClipView({ endsAt: null, remaining })
+  }
+
+  const clipReset = () => {
+    clipClear()
+    clip.current = { remaining: 0, startedAt: null, timer: null }
+    setClipView(null)
+  }
+
+  /** קובע את אורך הקטע בשניות (0 = בלי הגבלה) */
+  const setClipSeconds = useCallback((sec: number) => setClipMs(Math.max(0, sec) * 1000), [])
+
   const checkStatus = () => {
     setStatus(null)
     setTimeout(() => {
@@ -88,9 +135,10 @@ export function usePlayback() {
         current.current = { uri: song.uri, startMs, device: dev, albumUri: song.albumUri }
         await playTrack(dev, song.uri, startMs, song.albumUri)
         setPlaying(true)
+        clipRun(dev, true)
         checkStatus()
       }),
-    [deviceId, run],
+    [deviceId, run, clipMs],
   )
 
   /** נגן שוב מההתחלה (או מאותה נקודה אקראית שבה התחיל התור) */
@@ -102,23 +150,32 @@ export function usePlayback() {
         current.current.device = dev
         await playTrack(dev, current.current.uri, current.current.startMs, current.current.albumUri)
         setPlaying(true)
+        clipRun(dev, true)
       }),
-    [deviceId, run],
+    [deviceId, run, clipMs],
   )
 
   const pause = useCallback(
     () =>
       run(async () => {
+        clipPause()
         await apiPause(await deviceId())
         setPlaying(false)
       }),
-    [deviceId, run],
+    [deviceId, run, clipMs],
   )
 
   const resume = useCallback(
     () =>
       run(async () => {
         const dev = await deviceId()
+        if (clipMs && clip.current.remaining <= 0 && current.current) {
+          // הקטע נגמר – "המשך" = מתחילים את הקטע מחדש
+          await playTrack(dev, current.current.uri, current.current.startMs, current.current.albumUri)
+          setPlaying(true)
+          clipRun(dev, true)
+          return
+        }
         if (current.current && current.current.device !== dev) {
           // החליפו מכשיר באמצע – מתחילים את השיר במכשיר החדש
           current.current.device = dev
@@ -127,12 +184,14 @@ export function usePlayback() {
           await apiResume(dev)
         }
         setPlaying(true)
+        clipRun(dev, false)
       }),
-    [deviceId, run],
+    [deviceId, run, clipMs],
   )
 
   /** עוצר בשקט (למשל במעבר לחשיפה) בלי להציג שגיאה */
   const stop = useCallback(async () => {
+    clipPause()
     setPlaying(false)
     try {
       if (mode) await apiPause(await deviceId())
@@ -169,10 +228,11 @@ export function usePlayback() {
   const reset = useCallback(() => {
     if (current.current) stop()
     current.current = null
+    clipReset()
     setPlaying(false)
   }, [stop])
 
-  return { mode, setMode, reset, prime, browserReady, status, isPlaying, busy, error, playSong, restart, pause, resume, stop, hasSong: () => current.current !== null }
+  return { mode, setMode, reset, prime, browserReady, status, clipMs, clipView, setClipSeconds, isPlaying, busy, error, playSong, restart, pause, resume, stop, hasSong: () => current.current !== null }
 }
 
 export type Playback = ReturnType<typeof usePlayback>
