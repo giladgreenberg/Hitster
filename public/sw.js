@@ -2,7 +2,7 @@
 // דפים: קודם רשת (כדי לקבל תמיד את הגרסה החדשה), ובלי רשת – מהמטמון.
 // קבצי JS/CSS (עם hash בשם): מהמטמון אם יש.
 // בקשות לספוטיפיי / MusicBrainz לא נוגעים בהן בכלל.
-const CACHE = 'hitster-v1'
+const CACHE = 'hitster-v2'
 
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (e) => {

@@ -12,7 +12,8 @@ export default function Login({ error }: { error: string | null }) {
 
   return (
     <main className="mx-auto flex min-h-full max-w-md flex-col items-center justify-center gap-6 p-6 text-center">
-      <h1 className="text-5xl font-black tracking-tight">🎵 היטסטר</h1>
+      <img src="/icon-192.png" alt="" className="h-28 w-28 drop-shadow-2xl" />
+      <h1 className="text-5xl font-black tracking-tight">היטסטר</h1>
       <p className="text-lg text-violet-200">נחשו מתי יצא השיר ובנו את ציר הזמן שלכם</p>
 
       {!fromEnv && (
