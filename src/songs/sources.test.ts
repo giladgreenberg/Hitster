@@ -52,3 +52,12 @@ describe('רמת קושי לא תוקעת את המשחק', () => {
     expect(s).not.toBe(null)
   })
 })
+
+describe('חיסכון בבקשות', () => {
+  it('משתמשים בכמה שירים מכל חיפוש – פחות חיפושים משירים', async () => {
+    calls.length = 0
+    const src = createSongSource({ kind: 'random', fromYear: 1970, toYear: 1970, genres: ['rock'] })
+    for (let i = 0; i < 10; i++) await src.next()
+    expect(calls.length).toBeLessThan(10)
+  })
+})

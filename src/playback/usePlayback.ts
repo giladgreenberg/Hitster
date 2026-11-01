@@ -124,7 +124,7 @@ export function usePlayback() {
       const sdk = mode?.kind === 'browser' && lastSdkProblem ? ` · ${lastSdkProblem}` : ''
       const remotePc =
         mode?.kind === 'device' && mode.name.startsWith('היטסטר')
-          ? '\n\n💡 מנגנים דרך המחשב? ודאו שהמשחק פתוח שם בדפדפן, ש"נגן כאן בדפדפן" מסומן, ושלחצתם פעם אחת בדף שם (הדפדפן חוסם קול עד לחיצה). אחר כך נסו שוב.'
+          ? '\n\n💡 מנגנים דרך המחשב? ודאו שהמשחק פתוח שם בדפדפן, ש"המחשב הזה" מסומן, ושלחצתם פעם אחת בדף שם (הדפדפן חוסם קול עד לחיצה). אחר כך נסו שוב.'
           : ''
       setError((e instanceof Error ? e.message : String(e)) + sdk + remotePc)
       return false

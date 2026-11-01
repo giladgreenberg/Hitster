@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react'
 import { getDevices, isMobileBrowser, type Device } from '../playback/controller'
 import type { Playback } from '../playback/usePlayback'
 import { ownBrowserDeviceId } from '../playback/sdk'
+import { simplifyDevices, type DeviceChoice } from '../playback/devices'
 
-const ICONS: Record<string, string> = { Computer: '💻', Smartphone: '📱', Speaker: '🔊', TV: '📺', Tablet: '📱' }
 
 export default function OutputPicker({ playback }: { playback: Playback }) {
   const mobile = isMobileBrowser()
@@ -12,6 +12,7 @@ export default function OutputPicker({ playback }: { playback: Playback }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { mode, setMode } = playback
+  const [showOthers, setShowOthers] = useState(false)
 
   const refresh = async () => {
     setLoading(true)
@@ -19,7 +20,7 @@ export default function OutputPicker({ playback }: { playback: Playback }) {
     try {
       // רק את הנגן של הדפדפן הזה לא מציגים ברשימה (יש לו כפתור משלו).
       // נגן "היטסטר" שפתוח במכשיר אחר (למשל במחשב, כשהמשחק פתוח בטלפון) – כן מציגים.
-      setDevices((await getDevices()).filter((d) => d.id !== ownBrowserDeviceId))
+      setDevices(await getDevices())
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -45,6 +46,19 @@ export default function OutputPicker({ playback }: { playback: Playback }) {
     }
   }, [])
 
+  const simplified = devices ? simplifyDevices(devices, { mobile, ownId: ownBrowserDeviceId }) : null
+  const selectedIsOther = !!simplified?.others.some((c) => mode?.kind === 'device' && mode.id === c.device.id)
+  const choiceButton = (c: DeviceChoice) => (
+    <button
+      key={c.device.id}
+      className={btn(mode?.kind === 'device' && mode.id === c.device.id)}
+      onClick={() => setMode({ kind: 'device', id: c.device.id, name: c.device.name })}
+    >
+      <span>{c.icon}</span>
+      {c.label}
+    </button>
+  )
+
   const btn = (active: boolean) =>
     `flex w-full items-center gap-3 rounded-xl p-3 text-start text-lg ${active ? 'bg-green-500 font-bold text-black' : 'bg-white/10'}`
 
@@ -52,7 +66,7 @@ export default function OutputPicker({ playback }: { playback: Playback }) {
     <div className="space-y-3">
       {!mobile && (
         <button className={btn(mode?.kind === 'browser')} onClick={() => setMode({ kind: 'browser' })}>
-          <span>🖥️</span> נגן כאן בדפדפן
+          <span>💻</span> המחשב הזה
           {mode?.kind === 'browser' && <span className="ms-auto text-sm">{playback.browserReady ? '✓ מוכן' : 'טוען…'}</span>}
         </button>
       )}
@@ -69,7 +83,7 @@ export default function OutputPicker({ playback }: { playback: Playback }) {
         <p className="rounded-xl bg-white/5 p-3 text-sm text-violet-200">
           בטלפון אי אפשר לנגן ישירות בדפדפן. אפשר לנגן דרך:
           <br />• אפליקציית ספוטיפיי בטלפון – פתחו אותה, הפעילו ועצרו שיר כלשהו, וחזרו לכאן.
-          <br />• המחשב – פתחו את המשחק בדפדפן במחשב ובחרו שם "נגן כאן בדפדפן" (או פתחו את ספוטיפיי במחשב), ואז לחצו כאן "רענון".
+          <br />• המחשב – פתחו את המשחק בדפדפן במחשב ובחרו שם "המחשב הזה" (או פתחו את ספוטיפיי במחשב), ואז לחצו כאן "רענון".
         </p>
       )}
 
@@ -87,13 +101,18 @@ export default function OutputPicker({ playback }: { playback: Playback }) {
         </div>
       </div>
 
-      {devices?.length === 0 && <p className="text-sm text-violet-300">לא נמצאו מכשירים. פתחו את אפליקציית ספוטיפיי, נגנו בה שיר לשנייה, וחזרו לכאן.</p>}
-      {devices?.map((d) => (
-        <button key={d.id} className={btn(mode?.kind === 'device' && mode.id === d.id)} onClick={() => setMode({ kind: 'device', id: d.id, name: d.name })}>
-          <span>{d.name.startsWith('היטסטר') ? '💻' : (ICONS[d.type] ?? '🎧')}</span>
-          {d.name.startsWith('היטסטר') ? 'המחשב (המשחק פתוח שם בדפדפן)' : d.name}
-        </button>
-      ))}
+      {simplified && simplified.main.length === 0 && (
+        <p className="text-sm text-violet-300">{mobile ? 'לא נמצאו מכשירים. פתחו את אפליקציית ספוטיפיי, נגנו בה שיר לשנייה, וחזרו לכאן.' : 'הטלפון לא מופיע? פתחו בו את אפליקציית ספוטיפיי, נגנו שיר לשנייה, ולחצו "רענון".'}</p>
+      )}
+      {simplified?.main.map(choiceButton)}
+      {simplified && simplified.others.length > 0 && (
+        <>
+          <button onClick={() => setShowOthers(!showOthers)} className="text-sm text-violet-400 underline">
+            {showOthers || selectedIsOther ? 'הסתרת מכשירים נוספים' : `מכשירים נוספים (${simplified.others.length})`}
+          </button>
+          {(showOthers || selectedIsOther) && simplified.others.map(choiceButton)}
+        </>
+      )}
       {error && <p className="text-sm text-red-300">{error}</p>}
 
       {mode?.kind === 'device' && (

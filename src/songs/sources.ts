@@ -81,31 +81,53 @@ export class RandomSearchSource implements CandidateSource {
     return null
   }
 
+  /**
+   * מאגר מועמדים מהחיפושים האחרונים. כל חיפוש מחזיר עד 10 שירים – משתמשים בכולם
+   * (במקום לזרוק 9), וכך שולחים לספוטיפיי הרבה פחות בקשות. כדי לגוון, שולפים מהמאגר
+   * באקראי וממלאים אותו מחדש כשהוא מתרוקן, כך שהוא מערבב כמה שנים וז'אנרים.
+   */
+  private pool: SpotifyTrack[] = []
+  private static POOL_REFILL_BELOW = 6
+  /** כמה שירים לכל היותר לוקחים מכל עמוד (שלא יבואו הרבה שירים מאותה שנה ברצף) */
+  private static PER_PAGE = 5
+
   async nextCandidate() {
+    if (this.pool.length < RandomSearchSource.POOL_REFILL_BELOW) {
+      const added = await this.searchOnce()
+      if (added === null) return this.pool.length ? this.takeFromPool() : null
+      if (added === 0 && this.pool.length === 0) return undefined
+    }
+    return this.takeFromPool()
+  }
+
+  private takeFromPool(): SpotifyTrack | undefined {
+    if (!this.pool.length) return undefined
+    const i = randInt(0, this.pool.length - 1)
+    return this.pool.splice(i, 1)[0]
+  }
+
+  /** חיפוש אחד: מוסיף מועמדים למאגר. מחזיר כמה נוספו, או null אם אין יותר מה לחפש. */
+  private async searchOnce(): Promise<number | null> {
     const choice = this.pick()
     if (!choice) {
       // כמעט כל הצירופים ריקים – ננסה בלי ז'אנר, רק לפי שנה
       if (this.genres.length === 0) return null
       this.genres = []
-      return undefined
+      return 0
     }
     const { genre, q } = choice
 
-    // ספוטיפיי מאפשר offset עד 1000, ובכל בקשה עד 10 תוצאות.
-    // בפעם הראשונה לכל שאילתה לומדים כמה תוצאות יש, ואז מגרילים offset בטווח.
-    // הטווח שממנו מגרילים תלוי ברמת הקושי (קל = התוצאות הראשונות = הכי מוכרות)
-    const known = this.totals.get(q)
+    // הטווח שממנו מגרילים תלוי ברמת הקושי (קל = התוצאות הראשונות = הכי מוכרות).
+    // אם עוד לא יודעים כמה תוצאות יש, מנחשים שיש הרבה – ורק אם העמוד יצא ריק, מנסים שוב בטווח האמיתי.
     const pickOffset = (total: number) => {
       const [lo, hi] = offsetRange(this.difficulty, total)
       return randInt(lo, Math.max(lo, hi))
     }
-    let offset = known === undefined ? 0 : pickOffset(known)
-    let page = await searchTracks(q, offset)
+    const known = this.totals.get(q)
+    let page = await searchTracks(q, pickOffset(known ?? 1000))
     this.totals.set(q, page.total)
-    if (known === undefined && page.total > 10) {
-      // עכשיו כשיודעים כמה יש – מגרילים עמוד בטווח של רמת הקושי
-      offset = pickOffset(page.total)
-      if (offset >= 10) page = await searchTracks(q, offset)
+    if (!page.items.length && page.total > 0) {
+      page = await searchTracks(q, pickOffset(page.total))
     }
 
     if (!page.items.length) {
@@ -116,10 +138,12 @@ export class RandomSearchSource implements CandidateSource {
         // ז'אנר שיצא ריק 6 פעמים ברצף – כנראה לא קיים בספוטיפיי בשם הזה
         if (misses >= 6 && this.genres.length > 1) this.genres = this.genres.filter((g) => g !== genre)
       }
-      return undefined
+      return 0
     }
     if (genre) this.genreMisses.set(genre, 0)
-    return page.items[randInt(0, page.items.length - 1)]
+    const items = [...page.items].sort(() => Math.random() - 0.5).slice(0, RandomSearchSource.PER_PAGE)
+    this.pool.push(...items)
+    return items.length
   }
 }
 
