@@ -2,7 +2,7 @@
 import ErrorBox from '../components/ErrorBox'
 import { logAsText } from '../components/RequestLog'
 import { useEffect, useState } from 'react'
-import { getMyPlaylists, playlistTotal, type SpotifyPlaylist } from '../spotify/api'
+import { getMyPlaylists, playlistTotal, rateLimitSecondsLeft, type SpotifyPlaylist } from '../spotify/api'
 import { GENRES } from '../songs/genres'
 import type { SongQueue } from '../songs/queue'
 import type { Settings } from '../game/game'
@@ -63,12 +63,23 @@ export default function Setup({ playback, onStart, onDebug, onHighScores, onHelp
     }
   }, [kind, playlists])
 
+  // ספוטיפיי חוסם זמנית? מציגים כמה זמן נשאר ולא מאפשרים להתחיל (כל ניסיון רק מאריך את החסימה)
+  const [, tick] = useState(0)
+  const cooldown = rateLimitSecondsLeft()
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const t = setInterval(() => tick((x) => x + 1), 1000)
+    return () => clearInterval(t)
+  }, [cooldown > 0])
+  const cooldownText = cooldown >= 90 ? `${Math.ceil(cooldown / 60)} דקות` : `${Math.ceil(cooldown)} שניות`
+
   const names = players.map((p, i) => p.trim() || `שחקן ${i + 1}`)
   const problems: string[] = []
   if (kind === 'random' && genres.length === 0) problems.push('בחרו לפחות ז\'אנר אחד')
   if (kind === 'random' && !(fromYear >= 1900 && toYear >= fromYear && toYear <= thisYear)) problems.push('טווח השנים לא תקין')
   if (kind === 'playlists' && playlistIds.length === 0) problems.push('בחרו לפחות פלייליסט אחד')
   if (!playback.mode) problems.push('בחרו על מה לנגן')
+  if (cooldown > 0 && !starting) problems.unshift(`⏳ ספוטיפיי חסם זמנית את האפליקציה (יותר מדי בקשות). אפשר להתחיל שוב בעוד ${cooldownText}`)
 
   const start = async () => {
     const settings: Settings = {
