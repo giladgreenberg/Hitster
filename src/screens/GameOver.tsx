@@ -44,10 +44,8 @@ export default function GameOver({ game, onNewGame, onRematch }: { game: GameSta
               subtitle: `מצב קלאסי · ${game.players.length} שחקנים · ${new Date().toLocaleDateString('he-IL')}`,
               timeline: (winner ?? order[0]).timeline,
             }}
+            onStats={() => setStep('stats')}
           />
-          <button onClick={() => setStep('stats')} className="w-full rounded-2xl bg-violet-500 py-4 text-xl font-black active:scale-95">
-            📊 סטטיסטיקות וצירים
-          </button>
           <button onClick={onRematch} className="w-full rounded-2xl bg-green-500 py-4 text-2xl font-black text-black active:scale-95">
             🔁 עוד משחק (אותן הגדרות)
           </button>

@@ -4,7 +4,7 @@ import { drawShareCard, shareCanvas, type ShareCardData } from '../share/shareCa
 import { createSummaryPlaylist, needsRelogin, playedUris, reloginAndCreateLater, summaryName } from '../spotify/playlists'
 import { getBlacklist } from '../songs/blacklist'
 
-export default function EndActions({ card, usedIds }: { card: ShareCardData; usedIds: string[] }) {
+export default function EndActions({ card, usedIds, onStats, statsLabel = '📊 סטטיסטיקות' }: { card: ShareCardData; usedIds: string[]; onStats: () => void; statsLabel?: string }) {
   const [shareMsg, setShareMsg] = useState<string | null>(null)
   const [sharing, setSharing] = useState(false)
   const [pl, setPl] = useState<{ state: 'idle' | 'busy' | 'done' | 'error' | 'relogin'; url?: string; msg?: string; count?: number }>({ state: 'idle' })
@@ -42,13 +42,18 @@ export default function EndActions({ card, usedIds }: { card: ShareCardData; use
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
+        <button onClick={onStats} className="rounded-2xl bg-violet-500 py-3 text-lg font-bold active:scale-95">
+          {statsLabel}
+        </button>
         <button onClick={share} disabled={sharing} className="rounded-2xl bg-pink-500 py-3 text-lg font-bold active:scale-95 disabled:opacity-50">
           {sharing ? 'מכין תמונה…' : '📤 שתפו'}
         </button>
+      </div>
+      <div>
         <button
           onClick={savePlaylist}
           disabled={pl.state === 'busy' || pl.state === 'done'}
-          className="rounded-2xl bg-[#1db954] py-3 text-lg font-bold text-black active:scale-95 disabled:opacity-60"
+          className="w-full rounded-2xl bg-[#1db954] py-3 text-lg font-bold text-black active:scale-95 disabled:opacity-60"
         >
           {pl.state === 'busy' ? 'שומר…' : pl.state === 'done' ? '✓ נשמר' : '🎵 שמרו לפלייליסט'}
         </button>

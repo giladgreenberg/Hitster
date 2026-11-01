@@ -122,10 +122,9 @@ export default function SoloGame({ initial, initialQueue, playback, onNewGame, o
             subtitle: `סולו · ${CATEGORY_LABELS[category]}`,
             timeline: game.timeline,
           }}
+          onStats={() => setShowStats(!showStats)}
+          statsLabel={showStats ? 'הסתרת סטטיסטיקות' : '📊 סטטיסטיקות'}
         />
-        <button onClick={() => setShowStats(!showStats)} className="w-full rounded-2xl bg-violet-500 py-3 text-xl font-black active:scale-95">
-          {showStats ? 'הסתרת הסטטיסטיקות' : '📊 סטטיסטיקות'}
-        </button>
         {showStats && <StatsPanel events={game.events} actors={[game.name]} />}
         <div className="text-start">
           <p className="mb-1 text-sm text-violet-300">הציר שלך:</p>

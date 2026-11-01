@@ -103,10 +103,8 @@ export default function ExtremeGame({ initial, initialQueue, playback, onNewGame
                 subtitle: `מצב אקסטרים · ${game.teams[0].name} נגד ${game.teams[1].name}`,
                 timeline: game.timeline,
               }}
+              onStats={() => setEndStep('stats')}
             />
-            <button onClick={() => setEndStep('stats')} className="w-full rounded-2xl bg-violet-500 py-4 text-xl font-black active:scale-95">
-              📊 סטטיסטיקות והציר המשותף
-            </button>
             <button onClick={onRematch} className="w-full rounded-2xl bg-green-500 py-4 text-2xl font-black text-black active:scale-95">
               🔁 עוד משחק
             </button>
