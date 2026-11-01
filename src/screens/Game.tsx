@@ -201,8 +201,9 @@ export default function Game({ initial, initialQueue, playback, onNewGame, onRem
                   <Timeline timeline={player.timeline} lockedSlot={game.slot} lockedLabel={player.name} />
                   <div className="grid grid-cols-2 gap-2">
                     {eligibleChallengers(game).map((i) => (
-                      <button key={i} onClick={() => dispatch({ type: 'challenger', player: i })} className="rounded-xl bg-amber-500 py-3 text-lg font-bold text-black">
-                        {game.players[i].name} (🪙{game.players[i].tokens})
+                      <button key={i} onClick={() => dispatch({ type: 'challenger', player: i })} className="rounded-xl bg-amber-500 px-2 py-3 text-black">
+                        <span className="block text-lg font-bold">⚔️ {game.players[i].name} מאתגר/ת</span>
+                        <span className="block text-xs">יש לו/ה {game.players[i].tokens} אסימונים</span>
                       </button>
                     ))}
                   </div>
@@ -210,8 +211,9 @@ export default function Game({ initial, initialQueue, playback, onNewGame, onRem
               ) : (
                 <>
                   <p className="text-center text-xl font-bold">
-                    ⚔️ {game.players[game.challenge.player].name}, בחר/י מקום אחר בציר של {player.name}
+                    ⚔️ {game.players[game.challenge.player].name}, לחצו על + כדי לבחור מקום אחר בציר של {player.name}
                   </p>
+                  <p className="text-center text-sm text-amber-100/80">גוללים הצידה כדי לראות את כל המקומות. האתגר עולה 🪙{CHALLENGE_COST}.</p>
                   <Timeline
                     timeline={player.timeline}
                     selectable
@@ -286,7 +288,7 @@ export default function Game({ initial, initialQueue, playback, onNewGame, onRem
               disabled={!!game.challenge && game.challenge.slot === null}
               className="w-full rounded-2xl bg-violet-500 py-5 text-2xl font-black shadow-xl active:scale-95 disabled:opacity-40"
             >
-              {game.challenge ? '🃏 חשוף!' : '🃏 אין אתגר – חשוף!'}
+              {!game.challenge ? '🃏 אין אתגר – חשוף!' : game.challenge.slot === null ? '👆 קודם בוחרים מקום (+)' : '🃏 חשוף!'}
             </button>
           )}
 

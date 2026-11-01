@@ -226,4 +226,38 @@ describe('gameReducer', () => {
       expect(s.players[1].tokens).toBe(2)
     })
   })
+
+  it('אסימונים אף פעם לא יורדים מתחת ל-0', () => {
+    let s = withTokens(start(), 0, 0)
+    s = withTokens(s, 1, 0)
+    s = gameReducer(s, { type: 'beginTurn', song: song(1990) })
+    // בלי אסימונים: דילוג וקנייה חסומים, ואין מי שיאתגר
+    expect(gameReducer(s, { type: 'skip', song: song(1991) })).toBe(s)
+    expect(gameReducer(s, { type: 'buy' })).toBe(s)
+    s = gameReducer(s, { type: 'select', slot: 1 })
+    expect(gameReducer(s, { type: 'lockIn' })).toBe(s)
+    // גם אם מגיעים איכשהו לאתגר עם 0 – לא יורדים למינוס
+    const forced: GameState = { ...s, phase: 'challenge', challenge: { player: 1, slot: 0 } }
+    const after = gameReducer(forced, { type: 'reveal' })
+    expect(after.players.every((p) => p.tokens >= 0)).toBe(true)
+    // רצף פעולות אקראי ארוך – אף פעם לא שלילי
+    let g = start()
+    for (let i = 0; i < 300; i++) {
+      const actions = [
+        { type: 'beginTurn', song: song(1950 + (i % 70)) },
+        { type: 'select', slot: i % 3 },
+        { type: 'lockIn' },
+        { type: 'challenger', player: i % 2 },
+        { type: 'challengeSlot', slot: (i + 1) % 3 },
+        { type: 'skip', song: song(1960 + (i % 50)) },
+        { type: 'buy' },
+        { type: 'reveal' },
+        { type: 'guess', correct: i % 2 === 0 },
+        { type: 'next' },
+      ] as const
+      g = gameReducer(g, actions[i % actions.length] as never)
+      if (g.phase === 'over') g = start()
+      expect(g.players.every((p) => p.tokens >= 0 && p.tokens <= MAX_TOKENS)).toBe(true)
+    }
+  })
 })

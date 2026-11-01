@@ -77,10 +77,16 @@ export default function Timeline({ timeline, selectable, selectedSlot = null, on
     const el = scroller.current
     if (!el) return
     const target = el.querySelector<HTMLElement>(
-      selectedSlot !== null ? `[data-slot="${selectedSlot}"]` : highlightId ? `[data-song="${highlightId}"]` : 'none',
+      selectedSlot !== null
+        ? `[data-slot="${selectedSlot}"]`
+        : highlightId
+          ? `[data-song="${highlightId}"]`
+          : lockedSlot !== null
+            ? `[data-slot="${lockedSlot}"]`
+            : 'none',
     )
     target?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
-  }, [selectedSlot, highlightId])
+  }, [selectedSlot, highlightId, lockedSlot])
 
   const items: React.ReactNode[] = []
   timeline.forEach((song, i) => {
