@@ -4,6 +4,9 @@ import { getMe, getMyPlaylists, playlistTotal, type SpotifyPlaylist } from '../s
 import { logout } from '../spotify/auth'
 import { createSongSource, type SongSource, type SourceConfig } from '../songs/sources'
 import type { Song } from '../songs/types'
+import { usePlayback } from '../playback/usePlayback'
+import OutputPicker from '../components/OutputPicker'
+import PlayerControls from '../components/PlayerControls'
 
 export default function DevTest({ onLogout }: { onLogout: () => void }) {
   const [me, setMe] = useState<string>('')
@@ -16,6 +19,9 @@ export default function DevTest({ onLogout }: { onLogout: () => void }) {
   const [busy, setBusy] = useState(false)
   const [log, setLog] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [randomStart, setRandomStart] = useState(false)
+  const [hidden, setHidden] = useState(true)
+  const playback = usePlayback()
   const sourceRef = useRef<{ key: string; src: SongSource } | null>(null)
 
   useEffect(() => {
@@ -33,6 +39,8 @@ export default function DevTest({ onLogout }: { onLogout: () => void }) {
     setBusy(true)
     setError(null)
     setSong(null)
+    setHidden(true)
+    playback.reset()
     const key = JSON.stringify(config)
     if (sourceRef.current?.key !== key) sourceRef.current = { key, src: createSongSource(config, addLog) }
     try {
@@ -109,7 +117,27 @@ export default function DevTest({ onLogout }: { onLogout: () => void }) {
       {busy && <p className="text-center">מחפש שיר ובודק שנה מקורית ב-MusicBrainz…</p>}
       {error && <p className="rounded-xl bg-red-500/20 p-3 text-red-200">{error}</p>}
 
-      {song && (
+      <section className="space-y-3 rounded-2xl bg-white/5 p-4">
+        <h2 className="text-lg font-bold">3. השמעה</h2>
+        <OutputPicker playback={playback} />
+        <label className="flex items-center gap-2 text-lg">
+          <input type="checkbox" checked={randomStart} onChange={(e) => setRandomStart(e.target.checked)} className="h-5 w-5" />
+          התחל מנקודה אקראית בשיר
+        </label>
+        {song ? (
+          <PlayerControls playback={playback} onPlay={() => playback.playSong(song, randomStart)} />
+        ) : (
+          <p className="text-sm text-violet-300">הביאו קודם שיר (סעיף 1 או 2)</p>
+        )}
+      </section>
+
+      {song && hidden && (
+        <button onClick={() => setHidden(false)} className="w-full rounded-2xl bg-violet-500 py-4 text-xl font-bold">
+          🙈 חשוף את השיר
+        </button>
+      )}
+
+      {song && !hidden && (
         <section className="flex gap-4 rounded-2xl bg-white/10 p-4">
           {song.coverUrl && <img src={song.coverUrl} alt="" className="h-24 w-24 rounded-lg" />}
           <div className="space-y-1">
