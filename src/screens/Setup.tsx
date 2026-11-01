@@ -35,6 +35,7 @@ export default function Setup({ playback, onStart, onDebug, onHighScores, onLogo
   const [mode, setMode] = useState<GameMode>(saved?.mode ?? 'classic')
   const [players, setPlayers] = useState<string[]>(saved?.players ?? defaults.players)
   const [soloName, setSoloName] = useState<string>(saved?.soloName ?? '')
+  const [teams, setTeams] = useState<[string, string]>(saved?.teams ?? ['הכחולים', 'האדומים'])
   const [soloSeconds, setSoloSeconds] = useState<number>(saved?.soloSeconds ?? DEFAULT_SOLO_SECONDS)
   const [kind, setKind] = useState<'random' | 'playlists'>(saved?.source.kind ?? 'random')
   const [fromYear, setFrom] = useState(saved?.source.kind === 'random' ? saved.source.fromYear : 1970)
@@ -69,6 +70,7 @@ export default function Setup({ playback, onStart, onDebug, onHighScores, onLogo
       mode,
       soloSeconds,
       soloName: soloName.trim() || 'שחקן',
+      teams: [teams[0].trim() || 'קבוצה א', teams[1].trim() || 'קבוצה ב'],
       players: names,
       source: kind === 'random' ? { kind, fromYear, toYear, genres } : { kind, playlistIds },
       targetSongs: Math.max(2, Math.min(50, target)),
@@ -106,7 +108,7 @@ export default function Setup({ playback, onStart, onDebug, onHighScores, onLogo
             🏆 שיאי סולו
           </button>
         </div>
-        <ModePicker value={mode} onChange={setMode} disabled={['extreme']} />
+        <ModePicker value={mode} onChange={setMode} />
       </section>
 
       {mode === 'solo' && (
@@ -126,6 +128,22 @@ export default function Setup({ playback, onStart, onDebug, onHighScores, onLogo
               </button>
             ))}
           </div>
+        </section>
+      )}
+
+      {mode === 'extreme' && (
+        <section className={section}>
+          <h2 className="text-xl font-bold">קבוצות</h2>
+          {[0, 1].map((i) => (
+            <input
+              key={i}
+              value={teams[i]}
+              onChange={(e) => setTeams(i === 0 ? [e.target.value, teams[1]] : [teams[0], e.target.value])}
+              placeholder={i === 0 ? 'קבוצה א' : 'קבוצה ב'}
+              className={`w-full rounded-xl bg-white/10 p-3 text-lg outline-none focus:ring-2 ${i === 0 ? 'focus:ring-sky-400' : 'focus:ring-rose-400'}`}
+            />
+          ))}
+          <p className="text-sm text-violet-300">❤️❤️❤️ לכל קבוצה. טעות = מינוס לב. מי שנגמרים לה הלבבות – מפסידה.</p>
         </section>
       )}
 

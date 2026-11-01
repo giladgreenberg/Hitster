@@ -31,12 +31,13 @@ export function categoryOf(settings: Settings): ScoreCategory {
  * בתיקו – התוצאה הוותיקה נשארת לפני החדשה.
  */
 export function insertScore(list: ScoreEntry[], entry: ScoreEntry): { list: ScoreEntry[]; rank: number | null; isRecord: boolean } {
-  if (entry.score <= 0) return { list, rank: null, isRecord: false }
+  if (entry.score < 0) return { list, rank: null, isRecord: false }
   let rank = list.findIndex((e) => entry.score > e.score)
   if (rank === -1) rank = list.length
   if (rank >= MAX_ENTRIES) return { list, rank: null, isRecord: false }
   const next = [...list.slice(0, rank), entry, ...list.slice(rank)].slice(0, MAX_ENTRIES)
-  return { list: next, rank, isRecord: rank === 0 }
+  // שיא = מקום ראשון עם יותר מ-0 נקודות
+  return { list: next, rank, isRecord: rank === 0 && entry.score > 0 }
 }
 
 type Store = Partial<Record<ScoreCategory, ScoreEntry[]>>
@@ -57,7 +58,19 @@ export function bestScore(category: ScoreCategory): number {
   return getScores(category)[0]?.score ?? 0
 }
 
+const LAST_KEY = 'hitster.highscores.last'
+
+/** הקטגוריה של המשחק האחרון – כדי לפתוח את מסך השיאים בלשונית הנכונה */
+export function lastCategory(): ScoreCategory {
+  return (localStorage.getItem(LAST_KEY) as ScoreCategory | null) ?? 'medium'
+}
+
 export function saveScore(entry: ScoreEntry) {
+  try {
+    localStorage.setItem(LAST_KEY, entry.category)
+  } catch {
+    /* ignore */
+  }
   const store = load()
   const res = insertScore(store[entry.category] ?? [], entry)
   store[entry.category] = res.list

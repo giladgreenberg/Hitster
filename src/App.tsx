@@ -3,7 +3,8 @@ import { handleCallback, isLoggedIn, logout } from './spotify/auth'
 import { usePlayback } from './playback/usePlayback'
 import type { SongQueue } from './songs/queue'
 import { loadGame, loadSettings, saveGame } from './game/storage'
-import { isSolo, startGame, type AnyGame } from './game/startGame'
+import { isExtreme, isSolo, startGame, type AnyGame } from './game/startGame'
+import ExtremeGame from './screens/ExtremeGame'
 import SoloGame from './screens/SoloGame'
 import HighScores from './screens/HighScores'
 import Login from './screens/Login'
@@ -86,6 +87,21 @@ export default function App() {
     case 'highscores':
       return <HighScores onBack={() => setView({ name: 'setup' })} />
     case 'game':
+      if (isExtreme(view.game)) {
+        return (
+          <ExtremeGame
+            key={view.key}
+            initial={view.game}
+            initialQueue={view.queue}
+            playback={playback}
+            onNewGame={() => {
+              saveGame(null)
+              setView({ name: 'setup' })
+            }}
+            onRematch={rematch}
+          />
+        )
+      }
       if (isSolo(view.game)) {
         return (
           <SoloGame

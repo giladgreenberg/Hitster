@@ -2,10 +2,12 @@ import { createSongQueue, type SongQueue } from '../songs/queue'
 import type { Song } from '../songs/types'
 import { newGame, type GameState, type Settings } from './game'
 import { newSoloGame, type SoloState } from './solo'
+import { newExtremeGame, type ExtremeState } from './extreme'
 
-export type AnyGame = GameState | SoloState
+export type AnyGame = GameState | SoloState | ExtremeState
 
 export const isSolo = (g: AnyGame): g is SoloState => g.mode === 'solo'
+export const isExtreme = (g: AnyGame): g is ExtremeState => g.mode === 'extreme'
 
 /** כמה שירי פתיחה צריך לכל מצב */
 function startersNeeded(settings: Settings): number {
@@ -26,5 +28,6 @@ export async function startGame(settings: Settings, onProgress: (msg: string) =>
     starters.push(s)
   }
   if (settings.mode === 'solo') return { game: newSoloGame(settings, starters[0]), queue }
+  if (settings.mode === 'extreme') return { game: newExtremeGame(settings, starters[0]), queue }
   return { game: newGame({ ...settings, mode: 'classic' }, starters), queue }
 }

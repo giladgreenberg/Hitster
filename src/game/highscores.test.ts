@@ -26,7 +26,8 @@ describe('טבלת שיאים', () => {
     expect(r.list).toHaveLength(MAX_ENTRIES)
     expect(r.list.at(-1)!.score).toBe(12)
   })
-  it('ניקוד 0 לא נכנס לטבלה', () => {
-    expect(insertScore([], e(0)).rank).toBe(null)
+  it('ניקוד 0 נשמר בטבלה, אבל לא נחשב "שיא"', () => {
+    expect(insertScore([], e(0))).toMatchObject({ rank: 0, isRecord: false })
+    expect(insertScore([e(3)], e(0)).rank).toBe(1)
   })
 })

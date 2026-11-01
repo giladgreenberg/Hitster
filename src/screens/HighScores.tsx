@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CATEGORY_LABELS, getScores, type ScoreCategory } from '../game/highscores'
+import { CATEGORY_LABELS, getScores, lastCategory, type ScoreCategory } from '../game/highscores'
 
 const CATS: ScoreCategory[] = ['easy', 'medium', 'hard', 'playlists']
 
@@ -23,8 +23,8 @@ export function ScoreTable({ category, highlightDate }: { category: ScoreCategor
   )
 }
 
-export default function HighScores({ onBack, initial = 'medium' }: { onBack: () => void; initial?: ScoreCategory }) {
-  const [cat, setCat] = useState<ScoreCategory>(initial)
+export default function HighScores({ onBack, initial }: { onBack: () => void; initial?: ScoreCategory }) {
+  const [cat, setCat] = useState<ScoreCategory>(initial ?? lastCategory())
   return (
     <main className="mx-auto max-w-md space-y-4 p-4">
       <header className="flex items-center justify-between">
