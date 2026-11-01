@@ -33,6 +33,8 @@ function loadScript(): Promise<void> {
 
 let player: SdkPlayer | null = null
 export let lastSdkProblem: string | null = null
+/** ה-device_id של הנגן בדפדפן הזה (null = לא נוצר כאן נגן) */
+export let ownBrowserDeviceId: string | null = null
 let deviceIdPromise: Promise<string> | null = null
 
 /** מחזיר את ה-device_id של הנגן בדפדפן (יוצר אותו בפעם הראשונה). */
@@ -40,14 +42,17 @@ export function getBrowserDeviceId(): Promise<string> {
   deviceIdPromise ??= (async () => {
     await loadScript()
     player = new window.Spotify!.Player({
-      name: 'היטסטר (דפדפן)',
+      name: 'היטסטר (דפדפן במחשב)',
       volume: 0.8,
       getOAuthToken: (cb) => {
         getAccessToken().then((t) => t && cb(t))
       },
     })
     const id = new Promise<string>((resolve, reject) => {
-      player!.addListener('ready', ({ device_id }) => resolve(device_id))
+      player!.addListener('ready', ({ device_id }) => {
+        ownBrowserDeviceId = device_id
+        resolve(device_id)
+      })
       player!.addListener('initialization_error', ({ message }) => reject(new Error(`הדפדפן לא תומך בנגן: ${message}`)))
       player!.addListener('authentication_error', ({ message }) => reject(new Error(`בעיית הרשאה בנגן: ${message}`)))
       player!.addListener('account_error', () => reject(new Error('הנגן בדפדפן דורש חשבון Spotify Premium')))

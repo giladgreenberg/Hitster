@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { getDevices, isMobileBrowser, type Device } from '../playback/controller'
 import type { Playback } from '../playback/usePlayback'
+import { ownBrowserDeviceId } from '../playback/sdk'
 
 const ICONS: Record<string, string> = { Computer: '💻', Smartphone: '📱', Speaker: '🔊', TV: '📺', Tablet: '📱' }
 
@@ -16,8 +17,9 @@ export default function OutputPicker({ playback }: { playback: Playback }) {
     setLoading(true)
     setError(null)
     try {
-      // את הנגן של הדפדפן הזה לא מציגים ברשימה – יש לו כפתור משלו
-      setDevices((await getDevices()).filter((d) => !d.name.startsWith('היטסטר')))
+      // רק את הנגן של הדפדפן הזה לא מציגים ברשימה (יש לו כפתור משלו).
+      // נגן "היטסטר" שפתוח במכשיר אחר (למשל במחשב, כשהמשחק פתוח בטלפון) – כן מציגים.
+      setDevices((await getDevices()).filter((d) => d.id !== ownBrowserDeviceId))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -51,7 +53,9 @@ export default function OutputPicker({ playback }: { playback: Playback }) {
 
       {mobile && (
         <p className="rounded-xl bg-white/5 p-3 text-sm text-violet-200">
-          בטלפון אי אפשר לנגן ישירות בדפדפן. פתחו את אפליקציית ספוטיפיי (מספיק להפעיל ולעצור שיר כלשהו), חזרו לכאן ולחצו "רענון".
+          בטלפון אי אפשר לנגן ישירות בדפדפן. אפשר לנגן דרך:
+          <br />• אפליקציית ספוטיפיי בטלפון – פתחו אותה, הפעילו ועצרו שיר כלשהו, וחזרו לכאן.
+          <br />• המחשב – פתחו את המשחק בדפדפן במחשב ובחרו שם "נגן כאן בדפדפן" (או פתחו את ספוטיפיי במחשב), ואז לחצו כאן "רענון".
         </p>
       )}
 
@@ -72,8 +76,8 @@ export default function OutputPicker({ playback }: { playback: Playback }) {
       {devices?.length === 0 && <p className="text-sm text-violet-300">לא נמצאו מכשירים. פתחו את אפליקציית ספוטיפיי, נגנו בה שיר לשנייה, וחזרו לכאן.</p>}
       {devices?.map((d) => (
         <button key={d.id} className={btn(mode?.kind === 'device' && mode.id === d.id)} onClick={() => setMode({ kind: 'device', id: d.id, name: d.name })}>
-          <span>{ICONS[d.type] ?? '🎧'}</span>
-          {d.name}
+          <span>{d.name.startsWith('היטסטר') ? '💻' : (ICONS[d.type] ?? '🎧')}</span>
+          {d.name.startsWith('היטסטר') ? 'המחשב (המשחק פתוח שם בדפדפן)' : d.name}
         </button>
       ))}
       {error && <p className="text-sm text-red-300">{error}</p>}
