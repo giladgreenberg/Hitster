@@ -19,14 +19,25 @@ function startersNeeded(settings: Settings): number {
 /** מכין משחק חדש: טוען שירי פתיחה (והתור ממשיך לטעון ברקע) */
 export async function startGame(settings: Settings, onProgress: (msg: string) => void): Promise<{ game: AnyGame; queue: SongQueue }> {
   const n = startersNeeded(settings)
-  const queue = createSongQueue(settings.source, [], Math.max(4, n + 2))
+  let checked = 0
+  let label = ''
+  let done = false
+  // הודעת התקדמות: כמה שירים כבר נבדקו (כדי שיהיה ברור שהמשחק עובד ולא תקוע)
+  const queue = createSongQueue(settings.source, [], Math.max(4, n + 2), () => {
+    // אחרי שהמשחק התחיל, התור ממשיך לטעון ברקע – אז מפסיקים לדווח (אחרת המסך חוזר ל"טוען")
+    if (done) return
+    checked++
+    onProgress(`${label} (נבדקו ${checked} שירים)`)
+  })
   const starters: Song[] = []
   for (let i = 0; i < n; i++) {
-    onProgress(n > 1 ? `מכין שירי פתיחה ${i + 1}/${n}…` : 'מכין את השיר הראשון…')
+    label = n > 1 ? `מכין שירי פתיחה ${i + 1}/${n}…` : 'מכין את השיר הראשון…'
+    onProgress(label)
     const s = await queue.take()
     if (!s) throw new Error('לא נמצאו מספיק שירים במקור שנבחר')
     starters.push(s)
   }
+  done = true
   if (settings.mode === 'solo') return { game: newSoloGame(settings, starters[0]), queue }
   if (settings.mode === 'extreme') return { game: newExtremeGame(settings, starters[0]), queue }
   return { game: newGame({ ...settings, mode: 'classic' }, starters), queue }

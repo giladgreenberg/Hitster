@@ -43,3 +43,12 @@ describe('מקור אקראי עם הרבה ז\'אנרים', () => {
     expect(new Set(emptyQueries).size).toBe(emptyQueries.length)
   })
 })
+
+describe('רמת קושי לא תוקעת את המשחק', () => {
+  it('גם כשאף שיר לא עובר את סינון "קל" – בסוף מתקבל שיר', async () => {
+    // resolveSong המדומה לא מחזיר mbReleases, אז סינון "קל" דוחה הכול
+    const src = createSongSource({ kind: 'random', fromYear: 1970, toYear: 1979, genres: ['rock'], difficulty: 'easy' })
+    const s = await src.next()
+    expect(s).not.toBe(null)
+  })
+})

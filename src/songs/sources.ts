@@ -4,6 +4,9 @@ import { getPlaylistTracks, searchTracks, type SpotifyTrack } from '../spotify/a
 import { getBlacklist } from './blacklist'
 import { resolveSong } from './resolveSong'
 import { offsetRange, passesDifficulty } from './difficulty'
+
+/** כמה שירים ברצף מותר לדחות בגלל רמת הקושי לפני שמוותרים על הסינון לשיר הזה */
+const MAX_DIFFICULTY_REJECTS = 4
 import type { Song } from './types'
 import type { Difficulty } from '../game/modes'
 
@@ -129,6 +132,7 @@ export function createSongSource(config: SourceConfig, log: SourceLog = () => {}
   const used = new Set<string>()
   // בפלייליסט ממשיכים עד שהוא נגמר; באקראי – מספר ניסיונות גדול ואז שגיאה (לא "נגמר")
   const maxAttempts = config.kind === 'playlists' ? Infinity : 80
+  let difficultyRejects = 0
 
   return {
     /** מסמן שיר כמשומש (למשל אחרי שחזור משחק שמור) */
@@ -147,10 +151,14 @@ export function createSongSource(config: SourceConfig, log: SourceLog = () => {}
         const difficulty = config.kind === 'random' ? config.difficulty : undefined
         const needReleases = difficulty === 'easy' || difficulty === 'hard'
         const r = await resolveSong(t, needReleases)
-        if (r.ok && needReleases && !passesDifficulty(difficulty, r.song.mbReleases)) {
+        // סינון לפי קושי הוא "רך": אחרי כמה דחיות ברצף מקבלים את השיר בכל זאת
+        // (עומק החיפוש עדיין שומר על רמת הקושי) – כדי שלא נתקע על שירים בלי מידע ב-MusicBrainz
+        if (r.ok && needReleases && difficultyRejects < MAX_DIFFICULTY_REJECTS && !passesDifficulty(difficulty, r.song.mbReleases)) {
+          difficultyRejects++
           log(`✗ דילוג: ${t.name} – לא מתאים לרמת הקושי (${r.song.mbReleases ?? '?'} הוצאות)`)
           continue
         }
+        if (r.ok) difficultyRejects = 0
         if (r.ok) {
           log(`✓ ${t.name} – ${r.song.year} (${r.song.yearSource === 'musicbrainz' ? 'MusicBrainz' : 'ספוטיפיי'})`)
           return r.song

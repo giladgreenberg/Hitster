@@ -2,8 +2,8 @@
 import { createSongSource, type SourceConfig } from './sources'
 import type { Song } from './types'
 
-export function createSongQueue(config: SourceConfig, usedIds: string[] = [], size = 4) {
-  const source = createSongSource(config)
+export function createSongQueue(config: SourceConfig, usedIds: string[] = [], size = 4, log?: (msg: string) => void) {
+  const source = createSongSource(config, log)
   usedIds.forEach((id) => source.markUsed(id))
   const ready: Song[] = []
   let filling: Promise<void> | null = null
