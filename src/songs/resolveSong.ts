@@ -19,6 +19,8 @@ export async function resolveSong(track: SpotifyTrack): Promise<ResolveResult> {
     }
   }
 
+  if (t.is_playable === false) return { ok: false, reason: 'השיר לא זמין להשמעה בחשבון הזה' }
+
   const spotifyYear = parseYear(t.album?.release_date)
   const isrc = t.external_ids?.isrc ?? null
   const mb = isrc ? await lookupOriginalYear(isrc) : { year: null, status: 'אין ISRC' }

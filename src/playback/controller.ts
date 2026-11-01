@@ -15,17 +15,46 @@ export async function getDevices(): Promise<Device[]> {
   return res.devices.filter((d) => d.id && !d.is_restricted)
 }
 
-async function transferTo(deviceId: string) {
+async function transferTo(deviceId: string, play = false) {
   await spotifyFetch('/me/player', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ device_ids: [deviceId], play: false }),
+    body: JSON.stringify({ device_ids: [deviceId], play }),
   })
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-/** מנגן שיר מסוים במכשיר, החל מ-positionMs */
+interface PlayerState {
+  is_playing: boolean
+  progress_ms: number | null
+  device?: { id: string | null; name: string; is_active: boolean }
+  item?: { uri: string } | null
+}
+
+function getState() {
+  return spotifyFetch<PlayerState | undefined>('/me/player')
+}
+
+/** ממתין עד שספוטיפיי מדווח שהשיר באמת מתנגן במכשיר הנכון. מחזיר תיאור אם לא. */
+async function verifyPlaying(deviceId: string, uri: string): Promise<string | null> {
+  let last: PlayerState | undefined
+  for (let i = 0; i < 6; i++) {
+    await sleep(700)
+    try {
+      last = await getState()
+    } catch {
+      continue
+    }
+    if (last?.is_playing && last.device?.id === deviceId && last.item?.uri === uri) return null
+  }
+  if (!last) return 'ספוטיפיי מדווח שאין השמעה פעילה באף מכשיר'
+  return `ספוטיפיי מדווח: ${last.is_playing ? 'מתנגן' : 'לא מתנגן'} במכשיר "${last.device?.name ?? '?'}"${
+    last.item?.uri === uri ? '' : ' (שיר אחר)'
+  }`
+}
+
+/** מנגן שיר מסוים במכשיר, החל מ-positionMs. זורק שגיאה מפורטת אם ההשמעה לא התחילה בפועל. */
 export async function playTrack(deviceId: string, uri: string, positionMs = 0) {
   const doPlay = () =>
     spotifyFetch(`/me/player/play?device_id=${encodeURIComponent(deviceId)}`, {
@@ -33,22 +62,46 @@ export async function playTrack(deviceId: string, uri: string, positionMs = 0) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ uris: [uri], position_ms: Math.max(0, Math.floor(positionMs)) }),
     })
+
+  // אם המכשיר לא פעיל כרגע – קודם מעבירים אליו את ההשמעה ("מעירים" אותו)
+  try {
+    const st = await getState()
+    if (st?.device?.id !== deviceId) {
+      await transferTo(deviceId)
+      await sleep(1000)
+    }
+  } catch {
+    /* נמשיך בכל מקרה */
+  }
+
+  let problem: string | null
   try {
     await doPlay()
+    problem = await verifyPlaying(deviceId, uri)
   } catch (e) {
-    // מכשיר "רדום" (למשל אפליקציה בטלפון שלא ניגנה לאחרונה) – מעירים אותו ומנסים שוב
-    if (e instanceof Error && /404|Device not found|NO_ACTIVE_DEVICE/i.test(e.message)) {
-      await transferTo(deviceId)
-      await sleep(700)
-      await doPlay()
-    } else throw e
+    problem = e instanceof Error ? e.message : String(e)
   }
+
+  if (problem) {
+    // ניסיון שני: העברה מפורשת ואז השמעה
+    await transferTo(deviceId).catch(() => {})
+    await sleep(1200)
+    await doPlay()
+    const again = await verifyPlaying(deviceId, uri)
+    if (again) throw new Error(`הפקודה נשלחה אבל השיר לא התחיל להתנגן. ${again}`)
+  }
+
   // שלא יתנגן שיר אחר אחריו בטעות
   spotifyFetch(`/me/player/repeat?state=off&device_id=${encodeURIComponent(deviceId)}`, { method: 'PUT' }).catch(() => {})
 }
 
-export function pause(deviceId: string) {
-  return spotifyFetch(`/me/player/pause?device_id=${encodeURIComponent(deviceId)}`, { method: 'PUT' })
+export async function pause(deviceId: string) {
+  try {
+    await spotifyFetch(`/me/player/pause?device_id=${encodeURIComponent(deviceId)}`, { method: 'PUT' })
+  } catch (e) {
+    // 403 Restriction violated = כבר מושהה. זה בסדר.
+    if (!(e instanceof Error && /403/.test(e.message))) throw e
+  }
 }
 
 export function resume(deviceId: string) {

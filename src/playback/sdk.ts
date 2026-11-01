@@ -32,6 +32,7 @@ function loadScript(): Promise<void> {
 }
 
 let player: SdkPlayer | null = null
+export let lastSdkProblem: string | null = null
 let deviceIdPromise: Promise<string> | null = null
 
 /** מחזיר את ה-device_id של הנגן בדפדפן (יוצר אותו בפעם הראשונה). */
@@ -52,6 +53,9 @@ export function getBrowserDeviceId(): Promise<string> {
       player!.addListener('account_error', () => reject(new Error('הנגן בדפדפן דורש חשבון Spotify Premium')))
       setTimeout(() => reject(new Error('הנגן בדפדפן לא עלה תוך 15 שניות')), 15000)
     })
+    player.addListener('playback_error', ({ message }) => (lastSdkProblem = `שגיאת השמעה בדפדפן: ${message}`))
+    player.addListener('autoplay_failed', () => (lastSdkProblem = 'הדפדפן חסם השמעה אוטומטית – לחצו שוב על נגן'))
+    player.addListener('not_ready', () => (lastSdkProblem = 'הנגן בדפדפן התנתק – רעננו את הדף'))
     const ok = await player.connect()
     if (!ok) throw new Error('החיבור לנגן בדפדפן נכשל')
     return id

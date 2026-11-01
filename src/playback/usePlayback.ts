@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { activateBrowserPlayer, getBrowserDeviceId } from './sdk'
+import { activateBrowserPlayer, getBrowserDeviceId, lastSdkProblem } from './sdk'
 import { describePlayerState, isMobileBrowser, pause as apiPause, playTrack, randomStartMs, resume as apiResume } from './controller'
 import type { Song } from '../songs/types'
 
@@ -70,7 +70,8 @@ export function usePlayback() {
       await fn()
       return true
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      const sdk = mode?.kind === 'browser' && lastSdkProblem ? ` · ${lastSdkProblem}` : ''
+      setError((e instanceof Error ? e.message : String(e)) + sdk)
       return false
     } finally {
       setBusy(false)
