@@ -74,7 +74,13 @@ export async function spotifyFetch<T>(path: string, init: RequestInit = {}, atte
   }
   if (res.status === 204 || res.headers.get('content-length') === '0') return undefined as T
   const text = await res.text()
-  return (text ? JSON.parse(text) : undefined) as T
+  if (!text) return undefined as T
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    // חלק מפקודות הנגן מחזירות טקסט רגיל (למשל מזהה) ולא JSON – זה תקין
+    return text as T
+  }
 }
 
 export function getMe() {
