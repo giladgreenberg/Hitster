@@ -30,6 +30,7 @@ export default function SoloGame({ initial, initialQueue, playback, onNewGame, o
   const [game, dispatch] = useReducer(soloReducer, initial)
   const queueRef = useRef<SongQueue | null>(initialQueue)
   const [loading, setLoading] = useState(false)
+  const [showStats, setShowStats] = useState(false)
   const [guess, setGuess] = useState('')
   const exactOn = game.settings.exactYear !== false
   // שיר חדש = שדה ניחוש ריק
@@ -112,10 +113,10 @@ export default function SoloGame({ initial, initialQueue, playback, onNewGame, o
           <h2 className="mb-2 text-lg font-bold">🏆 טבלת שיאים – {CATEGORY_LABELS[category]}</h2>
           <ScoreTable category={category} highlightDate={final?.date} />
         </div>
-        <div className="space-y-3 text-start">
-          <h2 className="text-lg font-bold">📊 סטטיסטיקות</h2>
-          <StatsPanel events={game.events} actors={[game.name]} />
-        </div>
+        <button onClick={() => setShowStats(!showStats)} className="w-full rounded-2xl bg-violet-500 py-3 text-xl font-black active:scale-95">
+          {showStats ? 'הסתרת הסטטיסטיקות' : '📊 סטטיסטיקות'}
+        </button>
+        {showStats && <StatsPanel events={game.events} actors={[game.name]} />}
         <div className="text-start">
           <p className="mb-1 text-sm text-violet-300">הציר שלך:</p>
           <Timeline timeline={game.timeline} compact />

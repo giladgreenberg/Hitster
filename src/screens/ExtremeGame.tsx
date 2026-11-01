@@ -93,19 +93,28 @@ export default function ExtremeGame({ initial, initialQueue, playback, onNewGame
           <p className="text-violet-200">
             הציר המשותף הגיע ל-{game.timeline.length} שירים אחרי {game.turn} תורות
           </p>
-          <button
-            onClick={() => setEndStep('stats')}
-            disabled={!podiumDone}
-            className={`mt-auto w-full rounded-2xl bg-violet-500 py-4 text-2xl font-black transition-opacity active:scale-95 ${podiumDone ? '' : 'opacity-0'}`}
-          >
-            📊 לסטטיסטיקות
-          </button>
+          <div className={`mt-auto space-y-2 transition-opacity ${podiumDone ? '' : 'pointer-events-none opacity-0'}`}>
+            <button onClick={() => setEndStep('stats')} className="w-full rounded-2xl bg-violet-500 py-4 text-xl font-black active:scale-95">
+              📊 סטטיסטיקות והציר המשותף
+            </button>
+            <button onClick={onRematch} className="w-full rounded-2xl bg-green-500 py-4 text-2xl font-black text-black active:scale-95">
+              🔁 עוד משחק
+            </button>
+            <button onClick={onNewGame} className="w-full rounded-2xl bg-white/10 py-3 text-lg">
+              ⚙️ הגדרות
+            </button>
+          </div>
         </main>
       )
     }
     return (
       <main className="mx-auto max-w-md space-y-5 p-4 text-center">
-        <h1 className="pt-4 text-3xl font-black">📊 סיכום המשחק</h1>
+        <div className="flex items-center justify-between pt-2">
+          <h1 className="text-3xl font-black">📊 סיכום המשחק</h1>
+          <button onClick={() => setEndStep('podium')} className="rounded-lg bg-white/10 px-3 py-2">
+            → חזרה
+          </button>
+        </div>
         {scoreboard}
         <StatsPanel events={game.events} actors={game.teams.map((t) => t.name)} />
         <div className="text-start">

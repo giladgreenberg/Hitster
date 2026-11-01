@@ -34,20 +34,29 @@ export default function GameOver({ game, onNewGame, onRematch }: { game: GameSta
             ))}
           </ol>
         )}
-        <button
-          onClick={() => setStep('stats')}
-          className={`mt-auto w-full rounded-2xl bg-violet-500 py-4 text-2xl font-black transition-opacity active:scale-95 ${podiumDone ? '' : 'opacity-0'}`}
-          disabled={!podiumDone}
-        >
-          📊 לסטטיסטיקות
-        </button>
+        <div className={`mt-auto space-y-2 transition-opacity ${podiumDone ? '' : 'pointer-events-none opacity-0'}`}>
+          <button onClick={() => setStep('stats')} className="w-full rounded-2xl bg-violet-500 py-4 text-xl font-black active:scale-95">
+            📊 סטטיסטיקות וצירים
+          </button>
+          <button onClick={onRematch} className="w-full rounded-2xl bg-green-500 py-4 text-2xl font-black text-black active:scale-95">
+            🔁 עוד משחק (אותן הגדרות)
+          </button>
+          <button onClick={onNewGame} className="w-full rounded-2xl bg-white/10 py-3 text-lg">
+            ⚙️ שינוי הגדרות
+          </button>
+        </div>
       </main>
     )
   }
 
   return (
     <main className="mx-auto max-w-md space-y-5 p-4 text-center">
-      <h1 className="pt-4 text-3xl font-black">📊 סיכום המשחק</h1>
+      <div className="flex items-center justify-between pt-2">
+        <h1 className="text-3xl font-black">📊 סיכום המשחק</h1>
+        <button onClick={() => setStep('podium')} className="rounded-lg bg-white/10 px-3 py-2">
+          → חזרה
+        </button>
+      </div>
       <StatsPanel events={game.events ?? []} actors={game.players.map((p) => p.name)} />
 
       <div className="space-y-3 text-start">
