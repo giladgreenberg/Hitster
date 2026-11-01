@@ -2,6 +2,8 @@
 
 html, body, #root { height: 100%; }
 body {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  overscroll-behavior-y: none;
   background: #0f0a1e;
   color: #f5f3ff;
   font-family: system-ui, "Segoe UI", Arial, sans-serif;
