@@ -1,5 +1,6 @@
 // הגדרות משחק: שחקנים, מקור שירים, טווח שנים, יעד, ועל מה לנגן.
 import ErrorBox from '../components/ErrorBox'
+import { logAsText } from '../components/RequestLog'
 import { useEffect, useState } from 'react'
 import { getMyPlaylists, playlistTotal, type SpotifyPlaylist } from '../spotify/api'
 import { GENRES } from '../songs/genres'
@@ -327,8 +328,8 @@ export default function Setup({ playback, onStart, onDebug, onHighScores, onHelp
         מסך בדיקות
       </button>
 
-      <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-[#0f0a1e] via-[#0f0a1e] to-transparent p-4 pt-8">
-        <div className="mx-auto max-w-md">
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 bg-gradient-to-t from-[#0f0a1e] via-[#0f0a1e] to-transparent p-4 pt-8">
+        <div className="pointer-events-auto mx-auto max-w-md">
           {problems.length > 0 && !starting && <p className="mb-2 text-center text-sm text-amber-300">{problems[0]}</p>}
           <button
             onClick={start}
@@ -337,8 +338,26 @@ export default function Setup({ playback, onStart, onDebug, onHighScores, onHelp
           >
             {starting ?? 'יאללה, מתחילים! 🎶'}
           </button>
+          {starting && <CopyDetails />}
         </div>
       </div>
     </main>
+  )
+}
+
+/** בזמן ההמתנה: מעתיק את יומן הבקשות לספוטיפיי, כדי לשלוח למפתח */
+function CopyDetails() {
+  const [state, setState] = useState<'idle' | 'ok' | 'fail'>('idle')
+  const text = () => `זמן: ${new Date().toLocaleString('he-IL')}\nדפדפן: ${navigator.userAgent}\n\n${logAsText()}`
+  return (
+    <div className="mt-2 space-y-2">
+      <button
+        onClick={() => navigator.clipboard.writeText(text()).then(() => setState('ok'), () => setState('fail'))}
+        className="w-full rounded-xl bg-white/10 py-2 text-sm text-white"
+      >
+        {state === 'ok' ? '✓ הועתק – הדביקו בצ׳אט' : '📋 העתקת פרטים לשליחה'}
+      </button>
+      {state === 'fail' && <textarea dir="ltr" readOnly value={text()} className="h-40 w-full rounded-lg bg-black/60 p-2 text-left text-[11px]" />}
+    </div>
   )
 }
