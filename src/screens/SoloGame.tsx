@@ -27,9 +27,10 @@ export default function SoloGame({ initial, initialQueue, playback, onNewGame, o
   const queueRef = useRef<SongQueue | null>(initialQueue)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [final, setFinal] = useState<{ rank: number | null; isRecord: boolean; date: string } | null>(null)
+  const [final, setFinal] = useState<{ rank: number | null; isRecord: boolean; overallRank: number | null; overallRecord: boolean; date: string } | null>(null)
   const category = categoryOf(game.settings)
   const [best] = useState(() => bestScore(category))
+  const [bestAll] = useState(() => bestScore('all'))
 
   if (!queueRef.current) queueRef.current = createSongQueue(game.settings.source, game.usedIds, 4)
   useEffect(() => queueRef.current?.warmUp(), [])
@@ -73,13 +74,13 @@ export default function SoloGame({ initial, initialQueue, playback, onNewGame, o
     playback.reset()
     const date = new Date().toISOString()
     const res = saveScore({ name: game.name, score: game.score, date, category })
-    setFinal({ rank: res.rank, isRecord: res.isRecord, date })
+    setFinal({ rank: res.rank, isRecord: res.isRecord, overallRank: res.overallRank, overallRecord: res.overallRecord, date })
     dispatch({ type: 'finish' })
   }
 
   // ---------- מסך סיום ----------
   if (game.phase === 'over') {
-    const record = final?.isRecord
+    const record = final?.isRecord || final?.overallRecord
     return (
       <main className="mx-auto max-w-md space-y-5 p-4 text-center">
         {record && <Confetti count={120} />}
@@ -89,8 +90,13 @@ export default function SoloGame({ initial, initialQueue, playback, onNewGame, o
           <div className="text-7xl font-black text-green-400">{game.score}</div>
           <div className="text-violet-200">נקודות · {CATEGORY_LABELS[category]}</div>
         </div>
-        {record && best > 0 && <p className="text-lg text-amber-200">שברת את השיא הקודם ({best})! 🎉</p>}
-        {!record && final?.rank !== null && final?.rank !== undefined && <p className="text-lg text-amber-200">נכנסת לטבלה במקום {final.rank + 1}!</p>}
+        {final?.overallRecord && <p className="text-lg font-bold text-amber-200">🌍 שיא כללי חדש{bestAll > 0 ? ` (הקודם: ${bestAll})` : ''}!</p>}
+        {final?.isRecord && !final.overallRecord && <p className="text-lg text-amber-200">שיא חדש ב{CATEGORY_LABELS[category]}{best > 0 ? ` (הקודם: ${best})` : ''}! 🎉</p>}
+        {!record && final?.overallRank != null && <p className="text-lg text-amber-200">מקום {final.overallRank + 1} בטבלה הכללית!</p>}
+        <div className="rounded-2xl bg-white/5 p-3 text-start">
+          <h2 className="mb-2 text-lg font-bold">🌍 טבלה כללית</h2>
+          <ScoreTable category="all" highlightDate={final?.date} showCategory />
+        </div>
         <div className="rounded-2xl bg-white/5 p-3 text-start">
           <h2 className="mb-2 text-lg font-bold">🏆 טבלת שיאים – {CATEGORY_LABELS[category]}</h2>
           <ScoreTable category={category} highlightDate={final?.date} />
@@ -118,7 +124,7 @@ export default function SoloGame({ initial, initialQueue, playback, onNewGame, o
         <div>
           <div className="text-2xl font-black">⏱️ {game.name}</div>
           <div className="text-sm text-violet-300">
-            שיר {game.turn} · שיא: {best}
+            שיר {game.turn} · שיא כללי: {bestAll}
           </div>
         </div>
         <div className="text-center">

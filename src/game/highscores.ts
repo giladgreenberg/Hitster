@@ -3,8 +3,11 @@ import type { Settings } from './game'
 import type { Difficulty } from './modes'
 
 export type ScoreCategory = Difficulty | 'playlists'
+/** 'all' = טבלה כללית לכל משחקי הסולו */
+export type ScoreTableId = ScoreCategory | 'all'
 
-export const CATEGORY_LABELS: Record<ScoreCategory, string> = {
+export const CATEGORY_LABELS: Record<ScoreTableId, string> = {
+  all: '🌍 כללי',
   easy: 'אקראי – קל',
   medium: 'אקראי – בינוני',
   hard: 'אקראי – קשה',
@@ -40,7 +43,7 @@ export function insertScore(list: ScoreEntry[], entry: ScoreEntry): { list: Scor
   return { list: next, rank, isRecord: rank === 0 && entry.score > 0 }
 }
 
-type Store = Partial<Record<ScoreCategory, ScoreEntry[]>>
+type Store = Partial<Record<ScoreTableId, ScoreEntry[]>>
 
 function load(): Store {
   try {
@@ -50,11 +53,24 @@ function load(): Store {
   }
 }
 
-export function getScores(category: ScoreCategory): ScoreEntry[] {
-  return load()[category] ?? []
+/** מאחד כמה טבלאות לטבלה אחת (לבניית הטבלה הכללית מתוצאות ישנות) */
+export function mergeTables(tables: ScoreEntry[][]): ScoreEntry[] {
+  return tables
+    .flat()
+    .sort((a, b) => b.score - a.score || a.date.localeCompare(b.date))
+    .slice(0, MAX_ENTRIES)
 }
 
-export function bestScore(category: ScoreCategory): number {
+export function getScores(table: ScoreTableId): ScoreEntry[] {
+  const store = load()
+  if (table === 'all' && !store.all) {
+    // תוצאות שנשמרו לפני שהייתה טבלה כללית
+    return mergeTables([store.easy ?? [], store.medium ?? [], store.hard ?? [], store.playlists ?? []])
+  }
+  return store[table] ?? []
+}
+
+export function bestScore(category: ScoreTableId): number {
   return getScores(category)[0]?.score ?? 0
 }
 
@@ -72,12 +88,15 @@ export function saveScore(entry: ScoreEntry) {
     /* ignore */
   }
   const store = load()
+  const overallBefore = getScores('all')
   const res = insertScore(store[entry.category] ?? [], entry)
+  const overall = insertScore(overallBefore, entry)
   store[entry.category] = res.list
+  store.all = overall.list
   try {
     localStorage.setItem(KEY, JSON.stringify(store))
   } catch {
     /* ignore */
   }
-  return res
+  return { ...res, overallRank: overall.rank, overallRecord: overall.isRecord }
 }
