@@ -36,10 +36,11 @@ export function createSongQueue(config: SourceConfig, usedIds: string[] = [], si
     warmUp: () => void fill(),
     /** השיר הבא (מחכה אם אין מוכן). null = המקור נגמר */
     async take(): Promise<Song | null> {
+      let errors = 0
       while (ready.length === 0) {
         if (exhausted) return null
         await fill()
-        if (ready.length === 0 && lastError) throw lastError
+        if (ready.length === 0 && lastError && ++errors >= 2) throw lastError
       }
       const s = ready.shift()!
       void fill()
