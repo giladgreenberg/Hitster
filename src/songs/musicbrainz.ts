@@ -6,7 +6,7 @@ import { getCachedYear, setCachedYear } from './yearCache'
 import { parseYear } from './filters'
 
 const BASE = 'https://musicbrainz.org/ws/2'
-export const USER_AGENT = 'Hitster2-WebGame/0.1 ( https://github.com/giladgreenberg-lab/hitster2 )'
+export const USER_AGENT = 'Hitster2-WebGame/0.1 ( https://github.com/giladgreenberg/Hitster )'
 const MIN_GAP_MS = 1100
 
 // ---------- תור: בקשה אחת לשנייה לכל היותר ----------
