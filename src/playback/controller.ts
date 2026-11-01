@@ -39,8 +39,8 @@ function getState() {
 /** ממתין עד שספוטיפיי מדווח שהשיר באמת מתנגן במכשיר הנכון. מחזיר תיאור אם לא. */
 async function verifyPlaying(deviceId: string, uri: string): Promise<string | null> {
   let last: PlayerState | undefined
-  for (let i = 0; i < 6; i++) {
-    await sleep(700)
+  for (let i = 0; i < 4; i++) {
+    await sleep(1000)
     try {
       last = await getState()
     } catch {

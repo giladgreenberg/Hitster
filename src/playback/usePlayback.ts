@@ -74,14 +74,9 @@ export function usePlayback() {
   /** קובע את אורך הקטע בשניות (0 = בלי הגבלה) */
   const setClipSeconds = useCallback((sec: number) => setClipMs(Math.max(0, sec) * 1000), [])
 
-  const checkStatus = () => {
-    setStatus(null)
-    setTimeout(() => {
-      describePlayerState()
-        .then(setStatus)
-        .catch(() => {})
-    }, 2000)
-  }
+  // (בדיקת מצב אבחונית הוסרה מההשמעה הרגילה – playTrack כבר מוודא שהשיר מתנגן, וכל בקשה נספרת במכסה)
+  const checkStatus = () => setStatus(null)
+  void describePlayerState
 
   // טוענים את הנגן בדפדפן מראש, כדי שהלחיצה על "נגן" תוכל "לשחרר" את חסימת הקול של הדפדפן
   useEffect(() => {
@@ -227,7 +222,7 @@ export function usePlayback() {
       } catch {
         /* ignore */
       }
-    }, 4000)
+    }, 8000)
     return () => clearInterval(t)
   }, [isPlaying])
 

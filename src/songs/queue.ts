@@ -9,6 +9,7 @@ export function createSongQueue(config: SourceConfig, usedIds: string[] = [], si
   let filling: Promise<void> | null = null
   let exhausted = false
   let lastError: Error | null = null
+  // בזמן חסימת קצב לא ממשיכים לטעון ברקע
 
   async function fillLoop() {
     while (ready.length < size && !exhausted) {

@@ -30,7 +30,13 @@ export default function OutputPicker({ playback }: { playback: Playback }) {
   useEffect(() => {
     refresh()
     // חוזרים לדף (למשל אחרי שפתחו את אפליקציית ספוטיפיי) – מרעננים את רשימת המכשירים
-    const onVisible = () => document.visibilityState === 'visible' && refresh()
+    let last = Date.now()
+    const onVisible = () => {
+      // לכל היותר פעם ב-15 שניות – כל בקשה נספרת במכסה של ספוטיפיי
+      if (document.visibilityState !== 'visible' || Date.now() - last < 15000) return
+      last = Date.now()
+      refresh()
+    }
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', onVisible)
     return () => {
