@@ -1,4 +1,5 @@
 // מסך המשחק: העברת טלפון ← האזנה ומיקום ← חשיפה ← הבא.
+import ErrorBox from '../components/ErrorBox'
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { BUY_COST, CHALLENGE_COST, eligibleChallengers, gameReducer, SKIP_COST, type Action, type GameState } from '../game/game'
 import { saveGame } from '../game/storage'
@@ -333,7 +334,7 @@ export default function Game({ initial, initialQueue, playback, onNewGame, onRem
         </>
       )}
 
-      {error && <p className="rounded-xl bg-red-500/20 p-3 text-red-200">{error}</p>}
+      {error && <ErrorBox error={error} />}
       {showScores && <Scoreboard game={game} onClose={() => setShowScores(false)} />}
     </main>
   )

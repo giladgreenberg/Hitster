@@ -1,4 +1,5 @@
 // הגדרות משחק: שחקנים, מקור שירים, טווח שנים, יעד, ועל מה לנגן.
+import ErrorBox from '../components/ErrorBox'
 import { useEffect, useState } from 'react'
 import { getMyPlaylists, playlistTotal, type SpotifyPlaylist } from '../spotify/api'
 import { GENRES } from '../songs/genres'
@@ -320,7 +321,7 @@ export default function Setup({ playback, onStart, onDebug, onHighScores, onHelp
         <OutputPicker playback={playback} />
       </section>
 
-      {error && <p className="rounded-xl bg-red-500/20 p-3 text-red-200">{error}</p>}
+      {error && <ErrorBox error={error} />}
 
       <button onClick={onDebug} className="w-full text-center text-sm text-violet-400 underline">
         מסך בדיקות

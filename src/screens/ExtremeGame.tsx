@@ -1,4 +1,5 @@
 // מצב אקסטרים: שתי קבוצות, ציר משותף, 3 לבבות לכל קבוצה.
+import ErrorBox from '../components/ErrorBox'
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { extremeReducer, type ExtremeAction, type ExtremeState } from '../game/extreme'
 import { saveGame } from '../game/storage'
@@ -273,7 +274,7 @@ export default function ExtremeGame({ initial, initialQueue, playback, onNewGame
         </>
       )}
 
-      {error && <p className="rounded-xl bg-red-500/20 p-3 text-red-200">{error}</p>}
+      {error && <ErrorBox error={error} />}
     </main>
   )
 }

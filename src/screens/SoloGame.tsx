@@ -1,4 +1,5 @@
 // מצב סולו: שחקן אחד, שעון עצר, טעות אחת ונגמר. בסוף – טבלת שיאים.
+import ErrorBox from '../components/ErrorBox'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { soloReducer, soloSeconds, type SoloAction, type SoloState } from '../game/solo'
 import { saveGame } from '../game/storage'
@@ -247,7 +248,7 @@ export default function SoloGame({ initial, initialQueue, playback, onNewGame, o
         </>
       )}
 
-      {error && <p className="rounded-xl bg-red-500/20 p-3 text-red-200">{error}</p>}
+      {error && <ErrorBox error={error} />}
       {game.phase !== 'ready' && (
         <button
           onClick={() => {
