@@ -22,7 +22,7 @@ export function usePlayback() {
   const [isPlaying, setPlaying] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const current = useRef<{ uri: string; startMs: number } | null>(null)
+  const current = useRef<{ uri: string; startMs: number; device: string } | null>(null)
   const [browserReady, setBrowserReady] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
 
@@ -83,8 +83,9 @@ export function usePlayback() {
     (song: Song, randomStart: boolean) =>
       run(async () => {
         const startMs = randomStart ? randomStartMs(song.durationMs) : 0
-        current.current = { uri: song.uri, startMs }
-        await playTrack(await deviceId(), song.uri, startMs)
+        const dev = await deviceId()
+        current.current = { uri: song.uri, startMs, device: dev }
+        await playTrack(dev, song.uri, startMs)
         setPlaying(true)
         checkStatus()
       }),
@@ -96,7 +97,9 @@ export function usePlayback() {
     () =>
       run(async () => {
         if (!current.current) return
-        await playTrack(await deviceId(), current.current.uri, current.current.startMs)
+        const dev = await deviceId()
+        current.current.device = dev
+        await playTrack(dev, current.current.uri, current.current.startMs)
         setPlaying(true)
       }),
     [deviceId, run],
@@ -114,7 +117,14 @@ export function usePlayback() {
   const resume = useCallback(
     () =>
       run(async () => {
-        await apiResume(await deviceId())
+        const dev = await deviceId()
+        if (current.current && current.current.device !== dev) {
+          // החליפו מכשיר באמצע – מתחילים את השיר במכשיר החדש
+          current.current.device = dev
+          await playTrack(dev, current.current.uri, current.current.startMs)
+        } else {
+          await apiResume(dev)
+        }
         setPlaying(true)
       }),
     [deviceId, run],

@@ -43,9 +43,19 @@ export interface SpotifyPlaylist {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 export async function spotifyFetch<T>(path: string, init: RequestInit = {}, attempt = 0): Promise<T> {
+  try {
+    return await spotifyFetchInner<T>(path, init, attempt)
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'TimeoutError') throw new Error('ספוטיפיי לא ענה תוך 15 שניות. נסו שוב.')
+    throw e
+  }
+}
+
+async function spotifyFetchInner<T>(path: string, init: RequestInit, attempt: number): Promise<T> {
   const token = await getAccessToken()
   if (!token) throw new SpotifyAuthError('צריך להתחבר לספוטיפיי')
   const res = await fetch(path.startsWith('http') ? path : `${BASE}${path}`, {
+    signal: AbortSignal.timeout(15000), // שלא ייתקע לנצח
     ...init,
     headers: { ...(init.headers ?? {}), Authorization: `Bearer ${token}` },
   })
@@ -55,12 +65,12 @@ export async function spotifyFetch<T>(path: string, init: RequestInit = {}, atte
       logout()
       throw new SpotifyAuthError('פג תוקף ההתחברות')
     }
-    return spotifyFetch<T>(path, init, attempt + 1)
+    return spotifyFetchInner<T>(path, init, attempt + 1)
   }
   if (res.status === 429 && attempt < 3) {
     const wait = Number(res.headers.get('Retry-After') ?? '2')
     await sleep(Math.min(wait, 30) * 1000)
-    return spotifyFetch<T>(path, init, attempt + 1)
+    return spotifyFetchInner<T>(path, init, attempt + 1)
   }
   if (!res.ok) {
     let msg = `${res.status}`
