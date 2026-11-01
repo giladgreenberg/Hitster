@@ -197,8 +197,8 @@ export default function Setup({ playback, onStart, onDebug, onLogout }: Props) {
         </label>
         <label className="flex items-center justify-between gap-3 text-lg">
           <span>
-            בונוס ניחוש (אסימונים)
-            <span className="block text-xs text-violet-400">ניחוש נכון של שם ואמן = אסימון. 3 אסימונים = דילוג או קניית שיר</span>
+            משחק עם אסימונים 🪙
+            <span className="block text-xs text-violet-400">כל אחד מתחיל עם 2 (עד 5). ניחוש שם ואמן = +1. דילוג או אתגר = 1, קניית שיר = 3</span>
           </span>
           <input type="checkbox" checked={guessBonus} onChange={(e) => setGuessBonus(e.target.checked)} className="h-6 w-6 shrink-0" />
         </label>

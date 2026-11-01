@@ -1,15 +1,27 @@
 // מצב המשחק והפעולות עליו (reducer). בלי React ובלי רשת – כדי שיהיה קל לבדוק.
+//
+// אסימונים (לפי חוקי היטסטר המקוריים):
+// - כל שחקן מתחיל עם 2, ואפשר להחזיק עד 5.
+// - ניחוש נכון של שם השיר והאמן = +1.
+// - דילוג על שיר = 1. אתגר ("היטסטר!") = 1. קניית שיר = 3.
+// - אתגר: אחרי שהשחקן שבתור מיקם, שחקן אחר (אחד בלבד בכל תור) יכול לשים אסימון על מקום אחר
+//   באותו ציר. אם השחקן שבתור טעה והמאתגר צדק – השיר עובר לציר של המאתגר.
 import type { Song } from '../songs/types'
 import type { SourceConfig } from '../songs/sources'
 import { isPlacementCorrect } from './rules'
 
-export const TOKEN_COST = 3
+export const START_TOKENS = 2
+export const MAX_TOKENS = 5
+export const SKIP_COST = 1
+export const CHALLENGE_COST = 1
+export const BUY_COST = 3
 
 export interface Settings {
   players: string[]
   source: SourceConfig
   targetSongs: number
   randomStart: boolean
+  /** האם משחקים עם אסימונים (ניחוש, דילוג, אתגר, קנייה) */
   guessBonus: boolean
 }
 
@@ -19,13 +31,24 @@ export interface Player {
   tokens: number
 }
 
-export type Phase = 'pass' | 'listen' | 'reveal' | 'over'
+/**
+ * pass = מסך העברת טלפון, listen = האזנה ומיקום, challenge = הזדמנות לאתגר,
+ * reveal = חשיפה, over = סוף
+ */
+export type Phase = 'pass' | 'listen' | 'challenge' | 'reveal' | 'over'
+
+export interface Challenge {
+  player: number
+  slot: number | null
+}
 
 export interface TurnResult {
   how: 'placed' | 'bought'
   correct: boolean
-  /** האם השחקן ניחש נכון שם+אמן (null = עוד לא נשפט / בונוס כבוי) */
+  /** האם השחקן ניחש נכון שם+אמן (null = עוד לא נשפט / אסימונים כבויים) */
   guessed: boolean | null
+  /** תוצאת האתגר, אם היה */
+  challenge: { player: number; correct: boolean; wonCard: boolean } | null
 }
 
 export interface GameState {
@@ -35,6 +58,7 @@ export interface GameState {
   phase: Phase
   song: Song | null
   slot: number | null
+  challenge: Challenge | null
   result: TurnResult | null
   usedIds: string[]
   winner: number | null
@@ -42,8 +66,11 @@ export interface GameState {
 }
 
 export type Action =
-  | { type: 'select'; slot: number }
   | { type: 'beginTurn'; song: Song }
+  | { type: 'select'; slot: number }
+  | { type: 'lockIn' }
+  | { type: 'challenger'; player: number | null }
+  | { type: 'challengeSlot'; slot: number }
   | { type: 'reveal' }
   | { type: 'guess'; correct: boolean }
   | { type: 'skip'; song: Song }
@@ -53,13 +80,15 @@ export type Action =
   | { type: 'end' }
 
 export function newGame(settings: Settings, starters: Song[]): GameState {
+  const tokens = settings.guessBonus ? START_TOKENS : 0
   return {
     settings,
-    players: settings.players.map((name, i) => ({ name, timeline: [starters[i]], tokens: 0 })),
+    players: settings.players.map((name, i) => ({ name, timeline: [starters[i]], tokens })),
     current: 0,
     phase: 'pass',
     song: null,
     slot: null,
+    challenge: null,
     result: null,
     usedIds: starters.map((s) => s.id),
     winner: null,
@@ -67,10 +96,10 @@ export function newGame(settings: Settings, starters: Song[]): GameState {
   }
 }
 
-const years = (p: Player) => p.timeline.map((s) => s.year)
+const yearsOf = (p: Player) => p.timeline.map((s) => s.year)
 
-function updatePlayer(state: GameState, fn: (p: Player) => Player): Player[] {
-  return state.players.map((p, i) => (i === state.current ? fn(p) : p))
+function mapPlayer(players: Player[], index: number, fn: (p: Player) => Player): Player[] {
+  return players.map((p, i) => (i === index ? fn(p) : p))
 }
 
 function insertAt<T>(arr: T[], index: number, item: T): T[] {
@@ -78,20 +107,32 @@ function insertAt<T>(arr: T[], index: number, item: T): T[] {
 }
 
 /** המקום הנכון הראשון לשיר בציר */
-function autoSlot(p: Player, year: number): number {
-  const ys = years(p)
+export function autoSlot(p: Player, year: number): number {
+  const ys = yearsOf(p)
   for (let i = 0; i <= ys.length; i++) if (isPlacementCorrect(ys, i, year)) return i
   return ys.length
 }
 
-/** מי הגיע ליעד? (בודקים רק את השחקן הנוכחי – הראשון שמגיע מנצח) */
+const addTokens = (p: Player, n: number): Player => ({ ...p, tokens: Math.max(0, Math.min(MAX_TOKENS, p.tokens + n)) })
+
+/** מי יכול לאתגר עכשיו: שחקנים אחרים עם מספיק אסימונים */
+export function eligibleChallengers(state: GameState): number[] {
+  if (!state.settings.guessBonus) return []
+  return state.players.map((p, i) => ({ p, i })).filter(({ p, i }) => i !== state.current && p.tokens >= CHALLENGE_COST).map(({ i }) => i)
+}
+
+/** מנצח: השחקן שבתור קודם, ואז המאתגר */
 function checkWinner(state: GameState): number | null {
-  const p = state.players[state.current]
-  return p.timeline.length >= state.settings.targetSongs ? state.current : null
+  const target = state.settings.targetSongs
+  if (state.players[state.current].timeline.length >= target) return state.current
+  const ch = state.result?.challenge
+  if (ch && state.players[ch.player].timeline.length >= target) return ch.player
+  return null
 }
 
 export function gameReducer(state: GameState, action: Action): GameState {
   const player = state.players[state.current]
+  const tokensOn = state.settings.guessBonus
 
   switch (action.type) {
     case 'beginTurn':
@@ -101,6 +142,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         phase: 'listen',
         song: action.song,
         slot: null,
+        challenge: null,
         result: null,
         usedIds: [...state.usedIds, action.song.id],
       }
@@ -110,36 +152,68 @@ export function gameReducer(state: GameState, action: Action): GameState {
       if (action.slot < 0 || action.slot > player.timeline.length) return state
       return { ...state, slot: action.slot }
 
+    case 'lockIn':
+      // השחקן שבתור סיים למקם – הזדמנות לאתגר (רק אם יש מי שיכול)
+      if (state.phase !== 'listen' || state.slot === null) return state
+      if (eligibleChallengers(state).length === 0) return state
+      return { ...state, phase: 'challenge', challenge: null }
+
+    case 'challenger':
+      if (state.phase !== 'challenge') return state
+      if (action.player === null) return { ...state, challenge: null }
+      if (!eligibleChallengers(state).includes(action.player)) return state
+      return { ...state, challenge: { player: action.player, slot: null } }
+
+    case 'challengeSlot':
+      if (state.phase !== 'challenge' || !state.challenge) return state
+      if (action.slot === state.slot || action.slot < 0 || action.slot > player.timeline.length) return state
+      return { ...state, challenge: { ...state.challenge, slot: action.slot } }
+
     case 'reveal': {
-      if (state.phase !== 'listen' || !state.song || state.slot === null) return state
-      const correct = isPlacementCorrect(years(player), state.slot, state.song.year)
+      if ((state.phase !== 'listen' && state.phase !== 'challenge') || !state.song || state.slot === null) return state
       const song = state.song
       const slot = state.slot
+      const ys = yearsOf(player)
+      const correct = isPlacementCorrect(ys, slot, song.year)
+      let players = correct ? mapPlayer(state.players, state.current, (p) => ({ ...p, timeline: insertAt(p.timeline, slot, song) })) : state.players
+
+      // אתגר (רק אם המאתגר באמת בחר מקום)
+      let challenge: TurnResult['challenge'] = null
+      const ch = state.phase === 'challenge' ? state.challenge : null
+      if (ch && ch.slot !== null) {
+        const chCorrect = isPlacementCorrect(ys, ch.slot, song.year)
+        const wonCard = !correct && chCorrect
+        players = mapPlayer(players, ch.player, (p) => {
+          const paid = addTokens(p, -CHALLENGE_COST)
+          return wonCard ? { ...paid, timeline: insertAt(paid.timeline, autoSlot(paid, song.year), song) } : paid
+        })
+        challenge = { player: ch.player, correct: chCorrect, wonCard }
+      }
+
       const next: GameState = {
         ...state,
         phase: 'reveal',
-        players: correct ? updatePlayer(state, (p) => ({ ...p, timeline: insertAt(p.timeline, slot, song) })) : state.players,
-        result: { how: 'placed', correct, guessed: null },
+        players,
+        result: { how: 'placed', correct, guessed: tokensOn ? null : false, challenge },
       }
       return { ...next, winner: checkWinner(next) }
     }
 
     case 'guess': {
-      if (state.phase !== 'reveal' || !state.result || state.result.guessed !== null) return state
-      if (!state.settings.guessBonus) return state
+      if (state.phase !== 'reveal' || !state.result || state.result.guessed !== null || !tokensOn) return state
       return {
         ...state,
-        players: action.correct ? updatePlayer(state, (p) => ({ ...p, tokens: p.tokens + 1 })) : state.players,
+        players: action.correct ? mapPlayer(state.players, state.current, (p) => addTokens(p, 1)) : state.players,
         result: { ...state.result, guessed: action.correct },
       }
     }
 
     case 'skip':
-      // משלמים 3 אסימונים ומקבלים שיר אחר באותו תור
-      if (state.phase !== 'listen' || player.tokens < TOKEN_COST) return state
+      // משלמים אסימון ומקבלים שיר אחר באותו תור
+      if (state.phase !== 'listen' || !tokensOn || player.tokens < SKIP_COST) return state
       return {
         ...state,
-        players: updatePlayer(state, (p) => ({ ...p, tokens: p.tokens - TOKEN_COST })),
+        players: mapPlayer(state.players, state.current, (p) => addTokens(p, -SKIP_COST)),
         song: action.song,
         slot: null,
         usedIds: [...state.usedIds, action.song.id],
@@ -147,37 +221,47 @@ export function gameReducer(state: GameState, action: Action): GameState {
 
     case 'buy': {
       // משלמים 3 אסימונים והשיר נכנס לציר אוטומטית במקום הנכון
-      if (state.phase !== 'listen' || !state.song || player.tokens < TOKEN_COST) return state
+      if (state.phase !== 'listen' || !state.song || !tokensOn || player.tokens < BUY_COST) return state
       const song = state.song
       const next: GameState = {
         ...state,
         phase: 'reveal',
         slot: autoSlot(player, song.year),
-        players: updatePlayer(state, (p) => {
-          const slot = autoSlot(p, song.year)
-          return { ...p, tokens: p.tokens - TOKEN_COST, timeline: insertAt(p.timeline, slot, song) }
+        challenge: null,
+        players: mapPlayer(state.players, state.current, (p) => {
+          const paid = addTokens(p, -BUY_COST)
+          return { ...paid, timeline: insertAt(paid.timeline, autoSlot(paid, song.year), song) }
         }),
-        result: { how: 'bought', correct: true, guessed: null },
+        result: { how: 'bought', correct: true, guessed: null, challenge: null },
       }
       return { ...next, winner: checkWinner(next) }
     }
 
     case 'wrongYear': {
-      // "השנה שגויה": מבטלים את התור בלי עונש – השיר יוצא מהציר (אם נכנס), ואותו שחקן מקבל שיר חדש.
-      // אסימונים ששולמו על קנייה מוחזרים.
+      // "השנה שגויה": מבטלים את התור בלי עונש – השיר יוצא מכל ציר שאליו נכנס,
+      // אסימונים ששולמו (קנייה/אתגר) מוחזרים, ואותו שחקן מקבל שיר חדש.
       if (state.phase !== 'reveal' || !state.song) return state
       const bad = state.song
-      const refund = state.result?.how === 'bought' ? TOKEN_COST : 0
+      const r = state.result
+      let players = mapPlayer(state.players, state.current, (p) => ({
+        ...p,
+        tokens: Math.min(MAX_TOKENS, p.tokens + (r?.how === 'bought' ? BUY_COST : 0)),
+        timeline: p.timeline.filter((s) => s.id !== bad.id),
+      }))
+      if (r?.challenge) {
+        players = mapPlayer(players, r.challenge.player, (p) => ({
+          ...p,
+          tokens: Math.min(MAX_TOKENS, p.tokens + CHALLENGE_COST),
+          timeline: p.timeline.filter((s) => s.id !== bad.id),
+        }))
+      }
       return {
         ...state,
         phase: 'listen',
-        players: updatePlayer(state, (p) => ({
-          ...p,
-          tokens: p.tokens + refund,
-          timeline: p.timeline.filter((s) => s.id !== bad.id),
-        })),
+        players,
         song: action.song,
         slot: null,
+        challenge: null,
         result: null,
         winner: null,
         usedIds: [...state.usedIds, action.song.id],
@@ -193,6 +277,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         current: (state.current + 1) % state.players.length,
         song: null,
         slot: null,
+        challenge: null,
         result: null,
         turn: state.turn + 1,
       }

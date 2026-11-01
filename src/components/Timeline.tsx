@@ -12,6 +12,11 @@ interface Props {
   /** שיר להדגשה (למשל השיר שנכנס עכשיו) */
   highlightId?: string | null
   compact?: boolean
+  /** חריץ תפוס (הבחירה של השחקן שבתור, בזמן אתגר) */
+  lockedSlot?: number | null
+  lockedLabel?: string
+  /** הסימן בחריץ הנבחר */
+  selectedMark?: string
 }
 
 export function SongCard({ song, highlight, compact }: { song: Song; highlight?: boolean; compact?: boolean }) {
@@ -28,7 +33,15 @@ export function SongCard({ song, highlight, compact }: { song: Song; highlight?:
   )
 }
 
-function Slot({ index, selected, onSelect }: { index: number; selected: boolean; onSelect?: (i: number) => void }) {
+function Slot({ index, selected, onSelect, locked, mark = '?' }: { index: number; selected: boolean; onSelect?: (i: number) => void; locked?: string; mark?: string }) {
+  if (locked !== undefined) {
+    return (
+      <div data-slot={index} className="flex h-36 w-24 shrink-0 flex-col items-center justify-center rounded-xl border-2 border-violet-300/60 bg-violet-900/60 text-center">
+        <span className="text-4xl font-black">?</span>
+        <span className="line-clamp-2 px-1 text-xs text-violet-200">{locked}</span>
+      </div>
+    )
+  }
   if (selected) {
     return (
       <button
@@ -37,7 +50,7 @@ function Slot({ index, selected, onSelect }: { index: number; selected: boolean;
         className="pulse-ring flex h-36 w-24 shrink-0 items-center justify-center rounded-xl border-2 border-violet-300 bg-violet-500/40 text-5xl font-black"
         aria-label="המיקום שנבחר"
       >
-        ?
+        {mark}
       </button>
     )
   }
@@ -53,7 +66,10 @@ function Slot({ index, selected, onSelect }: { index: number; selected: boolean;
   )
 }
 
-export default function Timeline({ timeline, selectable, selectedSlot = null, onSelect, highlightId, compact }: Props) {
+export default function Timeline({ timeline, selectable, selectedSlot = null, onSelect, highlightId, compact, lockedSlot = null, lockedLabel = '', selectedMark }: Props) {
+  const slot = (i: number, key: string) => (
+    <Slot key={key} index={i} selected={selectedSlot === i} onSelect={onSelect} locked={lockedSlot === i ? lockedLabel : undefined} mark={selectedMark} />
+  )
   const scroller = useRef<HTMLDivElement>(null)
 
   // גוללים אוטומטית לחריץ שנבחר / לשיר המודגש
@@ -68,14 +84,14 @@ export default function Timeline({ timeline, selectable, selectedSlot = null, on
 
   const items: React.ReactNode[] = []
   timeline.forEach((song, i) => {
-    if (selectable) items.push(<Slot key={`s${i}`} index={i} selected={selectedSlot === i} onSelect={onSelect} />)
+    if (selectable || lockedSlot === i) items.push(slot(i, `s${i}`))
     items.push(
       <div key={song.id} data-song={song.id}>
         <SongCard song={song} highlight={song.id === highlightId} compact={compact} />
       </div>,
     )
   })
-  if (selectable) items.push(<Slot key="slast" index={timeline.length} selected={selectedSlot === timeline.length} onSelect={onSelect} />)
+  if (selectable || lockedSlot === timeline.length) items.push(slot(timeline.length, 'slast'))
 
   return (
     <div>

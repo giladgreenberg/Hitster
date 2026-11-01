@@ -1,6 +1,6 @@
 // מסך המשחק: העברת טלפון ← האזנה ומיקום ← חשיפה ← הבא.
 import { useEffect, useReducer, useRef, useState } from 'react'
-import { gameReducer, TOKEN_COST, type Action, type GameState } from '../game/game'
+import { BUY_COST, CHALLENGE_COST, eligibleChallengers, gameReducer, SKIP_COST, type Action, type GameState } from '../game/game'
 import { saveGame } from '../game/storage'
 import { createSongQueue, type SongQueue } from '../songs/queue'
 import { addToBlacklist } from '../songs/blacklist'
@@ -159,8 +159,8 @@ export default function Game({ initial, initialQueue, playback, onNewGame, onRem
         </section>
       )}
 
-      {/* האזנה + מיקום / חשיפה */}
-      {(game.phase === 'listen' || revealed) && (
+      {/* האזנה + מיקום / אתגר / חשיפה */}
+      {(game.phase === 'listen' || game.phase === 'challenge' || revealed) && (
         <>
           <FlipCard song={game.song} revealed={revealed} correct={revealed ? (result?.correct ?? null) : null} />
 
@@ -172,40 +172,122 @@ export default function Game({ initial, initialQueue, playback, onNewGame, onRem
             </div>
           )}
 
-          <div>
-            {!revealed && (
-              <p className="text-center text-violet-200">{game.slot === null ? '👇 לחצו על + כדי למקם את השיר בציר' : 'אפשר לשנות מיקום, ואז לחשוף'}</p>
-            )}
-            <Timeline
-              timeline={player.timeline}
-              selectable={!revealed}
-              selectedSlot={revealed ? null : game.slot}
-              onSelect={(slot) => dispatch({ type: 'select', slot })}
-              highlightId={revealed && result?.correct ? game.song?.id : null}
-            />
-          </div>
+          {revealed && result?.challenge && (
+            <div className={`pop-in rounded-2xl p-3 text-center text-lg ${result.challenge.wonCard ? 'bg-amber-500/25 text-amber-100' : 'bg-white/5 text-violet-200'}`}>
+              {result.challenge.wonCard
+                ? `⚔️ ${game.players[result.challenge.player].name} צדק/ה ולקח/ה את השיר לציר שלו/ה!`
+                : result.challenge.correct
+                  ? `⚔️ ${game.players[result.challenge.player].name} צדק/ה גם, אבל השיר נשאר אצל ${player.name}. האסימון הלך.`
+                  : `⚔️ האתגר של ${game.players[result.challenge.player].name} נכשל – האסימון הלך.`}
+            </div>
+          )}
 
-          {!revealed && (
-            <>
-              {game.settings.guessBonus && <p className="text-center text-sm text-violet-300">💡 בונוס: אמרו בקול את שם השיר והאמן לפני החשיפה</p>}
-              <button
-                onClick={reveal}
-                disabled={game.slot === null || loading}
-                className="w-full rounded-2xl bg-violet-500 py-5 text-2xl font-black shadow-xl active:scale-95 disabled:opacity-40"
-              >
-                🃏 חשוף!
-              </button>
-              {game.settings.guessBonus && player.tokens >= TOKEN_COST && (
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => withNewSong((song) => ({ type: 'skip', song }))} disabled={loading} className="rounded-xl bg-amber-500/20 py-3 text-amber-100">
-                    ⏭ דילוג (🪙{TOKEN_COST})
+          {/* ציר הזמן של השחקן שבתור */}
+          {game.phase === 'listen' && (
+            <div>
+              <p className="text-center text-violet-200">{game.slot === null ? '👇 לחצו על + כדי למקם את השיר בציר' : 'אפשר לשנות מיקום'}</p>
+              <Timeline timeline={player.timeline} selectable selectedSlot={game.slot} onSelect={(slot) => dispatch({ type: 'select', slot })} />
+            </div>
+          )}
+
+          {game.phase === 'challenge' && (
+            <div className="space-y-3 rounded-2xl bg-amber-500/10 p-3 ring-2 ring-amber-400/40">
+              {!game.challenge ? (
+                <>
+                  <p className="text-center text-xl font-bold">⚔️ מישהו רוצה לאתגר את {player.name}?</p>
+                  <p className="text-center text-sm text-amber-100/80">
+                    עולה 🪙{CHALLENGE_COST}. אם {player.name} טעה/תה ואתם צדקתם – השיר עובר אליכם.
+                  </p>
+                  <Timeline timeline={player.timeline} lockedSlot={game.slot} lockedLabel={player.name} />
+                  <div className="grid grid-cols-2 gap-2">
+                    {eligibleChallengers(game).map((i) => (
+                      <button key={i} onClick={() => dispatch({ type: 'challenger', player: i })} className="rounded-xl bg-amber-500 py-3 text-lg font-bold text-black">
+                        {game.players[i].name} (🪙{game.players[i].tokens})
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-center text-xl font-bold">
+                    ⚔️ {game.players[game.challenge.player].name}, בחר/י מקום אחר בציר של {player.name}
+                  </p>
+                  <Timeline
+                    timeline={player.timeline}
+                    selectable
+                    lockedSlot={game.slot}
+                    lockedLabel={player.name}
+                    selectedSlot={game.challenge.slot}
+                    selectedMark="⚔️"
+                    onSelect={(slot) => dispatch({ type: 'challengeSlot', slot })}
+                  />
+                  <button onClick={() => dispatch({ type: 'challenger', player: null })} className="w-full py-1 text-sm text-violet-300 underline">
+                    ביטול האתגר
                   </button>
-                  <button onClick={() => dispatch({ type: 'buy' })} disabled={loading} className="rounded-xl bg-amber-500/20 py-3 text-amber-100">
-                    🛒 קניית השיר (🪙{TOKEN_COST})
+                </>
+              )}
+            </div>
+          )}
+
+          {revealed && (
+            <Timeline timeline={player.timeline} highlightId={result?.correct ? game.song?.id : null} />
+          )}
+          {revealed && result?.challenge?.wonCard && (
+            <div>
+              <p className="text-center text-sm text-amber-200">הציר של {game.players[result.challenge.player].name}:</p>
+              <Timeline timeline={game.players[result.challenge.player].timeline} highlightId={game.song?.id} compact />
+            </div>
+          )}
+
+          {game.phase === 'listen' && (
+            <>
+              {game.settings.guessBonus && <p className="text-center text-sm text-violet-300">💡 אמרו בקול את שם השיר והאמן לפני החשיפה – ניחוש נכון = 🪙</p>}
+              {eligibleChallengers(game).length > 0 ? (
+                <button
+                  onClick={() => dispatch({ type: 'lockIn' })}
+                  disabled={game.slot === null || loading}
+                  className="w-full rounded-2xl bg-violet-500 py-5 text-2xl font-black shadow-xl active:scale-95 disabled:opacity-40"
+                >
+                  ✓ סיימתי למקם
+                </button>
+              ) : (
+                <button
+                  onClick={reveal}
+                  disabled={game.slot === null || loading}
+                  className="w-full rounded-2xl bg-violet-500 py-5 text-2xl font-black shadow-xl active:scale-95 disabled:opacity-40"
+                >
+                  🃏 חשוף!
+                </button>
+              )}
+              {game.settings.guessBonus && (player.tokens >= SKIP_COST || player.tokens >= BUY_COST) && (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => withNewSong((song) => ({ type: 'skip', song }))}
+                    disabled={loading || player.tokens < SKIP_COST}
+                    className="rounded-xl bg-amber-500/20 py-3 text-amber-100 disabled:opacity-30"
+                  >
+                    ⏭ דילוג (🪙{SKIP_COST})
+                  </button>
+                  <button
+                    onClick={() => dispatch({ type: 'buy' })}
+                    disabled={loading || player.tokens < BUY_COST}
+                    className="rounded-xl bg-amber-500/20 py-3 text-amber-100 disabled:opacity-30"
+                  >
+                    🛒 קניית השיר (🪙{BUY_COST})
                   </button>
                 </div>
               )}
             </>
+          )}
+
+          {game.phase === 'challenge' && (
+            <button
+              onClick={reveal}
+              disabled={!!game.challenge && game.challenge.slot === null}
+              className="w-full rounded-2xl bg-violet-500 py-5 text-2xl font-black shadow-xl active:scale-95 disabled:opacity-40"
+            >
+              {game.challenge ? '🃏 חשוף!' : '🃏 אין אתגר – חשוף!'}
+            </button>
           )}
 
           {revealed && result && (
@@ -223,7 +305,7 @@ export default function Game({ initial, initialQueue, playback, onNewGame, onRem
                   </div>
                 </div>
               )}
-              {result.guessed === true && <p className="text-center text-amber-200">🪙 קיבלת אסימון!</p>}
+              {result.guessed === true && <p className="text-center text-amber-200">🪙 {player.name} קיבל/ה אסימון!</p>}
 
               <button onClick={next} className="w-full rounded-2xl bg-green-500 py-5 text-2xl font-black text-black shadow-xl active:scale-95">
                 {game.winner !== null ? '🏆 לתוצאות' : single ? 'המשך ▶' : 'לשחקן הבא ▶'}
