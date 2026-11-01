@@ -24,7 +24,7 @@ export default function PlayerControls({ playback, onPlay }: { playback: Playbac
         </button>
       </div>
       {playback.status && <p className="text-sm text-violet-300">{playback.status}</p>}
-      {playback.error && <p className="rounded-xl bg-red-500/20 p-3 text-red-200">{playback.error}</p>}
+      {playback.error && <p className="whitespace-pre-line rounded-xl bg-red-500/20 p-3 text-sm text-red-200">{playback.error}</p>}
     </div>
   )
 }

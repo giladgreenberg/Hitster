@@ -74,22 +74,51 @@ export async function playTrack(deviceId: string, uri: string, positionMs = 0) {
     /* נמשיך בכל מקרה */
   }
 
-  let problem: string | null
-  try {
-    await doPlay()
-    problem = await verifyPlaying(deviceId, uri)
-  } catch (e) {
-    problem = e instanceof Error ? e.message : String(e)
-  }
+  const pos = Math.max(0, Math.floor(positionMs))
+  const attempts: [string, () => Promise<unknown>][] = [
+    ['השמעה ישירה', doPlay],
+    [
+      'השמעה במכשיר הפעיל',
+      async () => {
+        await transferTo(deviceId).catch(() => {})
+        await sleep(1200)
+        // בלי device_id – הפקודה הולכת למכשיר הפעיל (עוזר באנדרואיד)
+        await spotifyFetch('/me/player/play', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uris: [uri], position_ms: pos }),
+        })
+      },
+    ],
+    [
+      'הוספה לתור ודילוג',
+      async () => {
+        await spotifyFetch(`/me/player/queue?uri=${encodeURIComponent(uri)}&device_id=${encodeURIComponent(deviceId)}`, { method: 'POST' })
+        await sleep(500)
+        await spotifyFetch(`/me/player/next?device_id=${encodeURIComponent(deviceId)}`, { method: 'POST' })
+        await sleep(800)
+        if (pos > 0) await spotifyFetch(`/me/player/seek?position_ms=${pos}&device_id=${encodeURIComponent(deviceId)}`, { method: 'PUT' })
+        await spotifyFetch(`/me/player/play?device_id=${encodeURIComponent(deviceId)}`, { method: 'PUT' }).catch(() => {})
+      },
+    ],
+  ]
 
-  if (problem) {
-    // ניסיון שני: העברה מפורשת ואז השמעה
-    await transferTo(deviceId).catch(() => {})
-    await sleep(1200)
-    await doPlay()
-    const again = await verifyPlaying(deviceId, uri)
-    if (again) throw new Error(`הפקודה נשלחה אבל השיר לא התחיל להתנגן. ${again}`)
+  const problems: string[] = []
+  let ok = false
+  for (const [label, attempt] of attempts) {
+    try {
+      await attempt()
+      const problem = await verifyPlaying(deviceId, uri)
+      if (!problem) {
+        ok = true
+        break
+      }
+      problems.push(`${label}: ${problem}`)
+    } catch (e) {
+      problems.push(`${label}: ${e instanceof Error ? e.message : String(e)}`)
+    }
   }
+  if (!ok) throw new Error(`השיר לא התחיל להתנגן.\n${problems.join('\n')}`)
 
   // שלא יתנגן שיר אחר אחריו בטעות
   spotifyFetch(`/me/player/repeat?state=off&device_id=${encodeURIComponent(deviceId)}`, { method: 'PUT' }).catch(() => {})

@@ -66,6 +66,7 @@ export function usePlayback() {
     if (mode?.kind === 'browser') activateBrowserPlayer() // חייב לקרות מיד בלחיצה
     setBusy(true)
     setError(null)
+    setStatus(null)
     try {
       await fn()
       return true
