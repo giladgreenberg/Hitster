@@ -27,6 +27,14 @@ export default function OutputPicker({ playback }: { playback: Playback }) {
 
   useEffect(() => {
     refresh()
+    // חוזרים לדף (למשל אחרי שפתחו את אפליקציית ספוטיפיי) – מרעננים את רשימת המכשירים
+    const onVisible = () => document.visibilityState === 'visible' && refresh()
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
   }, [])
 
   const btn = (active: boolean) =>
@@ -61,7 +69,7 @@ export default function OutputPicker({ playback }: { playback: Playback }) {
         </div>
       </div>
 
-      {devices?.length === 0 && <p className="text-sm text-violet-300">לא נמצאו מכשירים. ודאו שאפליקציית ספוטיפיי פתוחה ומחוברת לאותו חשבון.</p>}
+      {devices?.length === 0 && <p className="text-sm text-violet-300">לא נמצאו מכשירים. פתחו את אפליקציית ספוטיפיי, נגנו בה שיר לשנייה, וחזרו לכאן.</p>}
       {devices?.map((d) => (
         <button key={d.id} className={btn(mode?.kind === 'device' && mode.id === d.id)} onClick={() => setMode({ kind: 'device', id: d.id, name: d.name })}>
           <span>{ICONS[d.type] ?? '🎧'}</span>
