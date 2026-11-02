@@ -1,6 +1,7 @@
 // יומן הבקשות לספוטיפיי – לאבחון בעיות (למשל "יותר מדי בקשות")
 import { useEffect, useState } from 'react'
-import { getRequestLog, rateLimitSecondsLeft, type RequestLogEntry } from '../spotify/api'
+import { getRequestLog, rateLimitSecondsLeft, requestsInWindow, type RequestLogEntry } from '../spotify/api'
+import { clientIdFromEnv, getClientId } from '../spotify/auth'
 
 function summarize(log: RequestLogEntry[]) {
   const now = Date.now()
@@ -15,7 +16,9 @@ function summarize(log: RequestLogEntry[]) {
 export function logAsText(): string {
   const log = getRequestLog()
   const s = summarize(log)
+  const id = getClientId()
   const lines = [
+    `Client ID: ${id.slice(0, 6)}…${id.slice(-4)} (${clientIdFromEnv() ? 'מ-Vercel' : 'מהמסך'}) · בחלון הבלם: ${requestsInWindow()}`,
     `בקשות ב-30 שניות אחרונות: ${s.last30} · ב-5 דקות: ${s.last5m} · מהן 429: ${s.r429} · Retry-After אחרון: ${s.lastRetry ?? '-'} · חסימה נוכחית: ${Math.ceil(rateLimitSecondsLeft())} ש'`,
     ...s.byPath.map(([p, n]) => `${n}× ${p}`),
     '---',

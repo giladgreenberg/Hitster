@@ -342,6 +342,7 @@ export default function Setup({ playback, onStart, onDebug, onHighScores, onHelp
       <div className="pointer-events-none fixed inset-x-0 bottom-0 bg-gradient-to-t from-[#0f0a1e] via-[#0f0a1e] to-transparent p-4 pt-8">
         <div className="pointer-events-auto mx-auto max-w-md">
           {problems.length > 0 && !starting && <p className="mb-2 text-center text-sm text-amber-300">{problems[0]}</p>}
+          {cooldown > 0 && !starting && <CopyDetails />}
           <button
             onClick={start}
             disabled={problems.length > 0 || !!starting}

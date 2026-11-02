@@ -126,6 +126,17 @@ export function rateLimitSecondsLeft(): number {
   return Math.max(0, (cooldownUntil - Date.now()) / 1000)
 }
 
+// בלם כללי: לכל היותר WINDOW_MAX בקשות בכל 30 שניות – גם אם באג כלשהו בקוד מנסה לשלוח יותר.
+// כך האפליקציה לעולם לא "מציפה" את ספוטיפיי ולא נחסמת.
+const WINDOW_MS = 30_000
+const WINDOW_MAX = 20
+const sent: number[] = []
+export function requestsInWindow(): number {
+  const now = Date.now()
+  while (sent.length && now - sent[0] > WINDOW_MS) sent.shift()
+  return sent.length
+}
+
 async function paced(): Promise<void> {
   const left = rateLimitSecondsLeft()
   if (left > MAX_INLINE_WAIT_S) {
@@ -138,7 +149,14 @@ async function paced(): Promise<void> {
   const turn = gate.then(async () => {
     const wait = lastRequestAt + MIN_GAP_MS - Date.now()
     if (wait > 0) await sleep(wait)
+    // הגענו לתקרה בחלון של 30 שניות? מחכים עד שמתפנה מקום
+    while (requestsInWindow() >= WINDOW_MAX) {
+      const free = sent[0] + WINDOW_MS - Date.now() + 50
+      announceWait(free / 1000)
+      await sleep(free)
+    }
     lastRequestAt = Date.now()
+    sent.push(lastRequestAt)
   })
   gate = turn.catch(() => undefined)
   return turn

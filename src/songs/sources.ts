@@ -155,7 +155,7 @@ export function createSongSource(config: SourceConfig, log: SourceLog = () => {}
       : new RandomSearchSource(config.fromYear, config.toYear, config.genres, config.difficulty ?? 'medium')
   const used = new Set<string>()
   // בפלייליסט ממשיכים עד שהוא נגמר; באקראי – מספר ניסיונות גדול ואז שגיאה (לא "נגמר")
-  const maxAttempts = config.kind === 'playlists' ? Infinity : 80
+  const maxAttempts = config.kind === 'playlists' ? Infinity : 40
   let difficultyRejects = 0
 
   return {
@@ -166,10 +166,18 @@ export function createSongSource(config: SourceConfig, log: SourceLog = () => {}
     /** השיר הבא עם שנה מקורית אמינה, או null אם המקור נגמר באמת */
     async next(): Promise<Song | null> {
       const blacklist = getBlacklist()
+      let emptyInARow = 0
       for (let i = 0; i < maxAttempts; i++) {
         const t = await inner.nextCandidate()
         if (t === null) return null
-        if (t === undefined) continue
+        if (t === undefined) {
+          // הרבה חיפושים ריקים ברצף – משהו לא תקין בחיפוש; עוצרים במקום להציף את ספוטיפיי בבקשות
+          if (++emptyInARow >= 12) {
+            throw new Error('החיפוש בספוטיפיי לא מחזיר שירים לסינון שנבחר. נסו טווח שנים רחב יותר, ז\'אנרים אחרים, או "הפלייליסטים שלי".')
+          }
+          continue
+        }
+        emptyInARow = 0
         if (used.has(t.id) || blacklist.has(t.id)) continue
         used.add(t.id)
         const difficulty = config.kind === 'random' ? config.difficulty : undefined
