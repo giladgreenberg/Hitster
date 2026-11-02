@@ -5,7 +5,7 @@
 // - תוכן פלייליסט: GET /playlists/{id}/items, וכל שורה מכילה item (בעבר track).
 // - external_ids (ISRC) הוסר בפברואר אבל הוחזר במרץ 2026.
 
-import { getAccessToken, logout } from './auth'
+import { getAccessToken, getClientId, logout } from './auth'
 
 const BASE = 'https://api.spotify.com/v1'
 
@@ -54,18 +54,31 @@ const MAX_INLINE_WAIT_S = 60
 let lastRequestAt = 0
 let gate: Promise<unknown> = Promise.resolve()
 // החסימה נשמרת גם ברענון – אחרת רענון שולח בקשות מיד ומאריך את החסימה אצל ספוטיפיי
-const COOLDOWN_KEY = 'hitster.spotifyCooldownUntil'
-let cooldownUntil = (() => {
+// החסימה שייכת ל-Client ID מסוים: אפליקציה חדשה בספוטיפיי = מכסה חדשה, בלי החסימה הישנה
+const cooldownKey = () => {
   try {
-    return Number(localStorage.getItem(COOLDOWN_KEY) ?? 0) || 0
+    return `hitster.spotifyCooldownUntil.${getClientId()}`
   } catch {
-    return 0
+    return 'hitster.spotifyCooldownUntil'
   }
-})()
+}
+let cooldownUntil = 0
+let cooldownFor = ''
+function syncCooldown() {
+  const key = cooldownKey()
+  if (key === cooldownFor) return
+  cooldownFor = key
+  try {
+    cooldownUntil = Number(localStorage.getItem(key) ?? 0) || 0
+  } catch {
+    cooldownUntil = 0
+  }
+}
 function setCooldown(until: number) {
+  syncCooldown()
   cooldownUntil = Math.max(cooldownUntil, until)
   try {
-    localStorage.setItem(COOLDOWN_KEY, String(cooldownUntil))
+    localStorage.setItem(cooldownKey(), String(cooldownUntil))
   } catch {
     /* ignore */
   }
@@ -109,6 +122,7 @@ function waitText(sec: number) {
 
 /** כמה שניות נשארו לחסימה (0 = אין חסימה) */
 export function rateLimitSecondsLeft(): number {
+  syncCooldown()
   return Math.max(0, (cooldownUntil - Date.now()) / 1000)
 }
 
