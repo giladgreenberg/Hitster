@@ -9,6 +9,7 @@ import { CalculatorScreen } from './screens/CalculatorScreen'
 import { FavoritesScreen } from './screens/FavoritesScreen'
 import { FormulasScreen } from './screens/FormulasScreen'
 import { GlossaryScreen } from './screens/GlossaryScreen'
+import { QuizScreen } from './screens/QuizScreen'
 import { TopicEditor } from './screens/TopicEditor'
 
 type SheetState = { kind: 'formula' | 'term'; id: string } | null
@@ -43,7 +44,8 @@ export default function App() {
     <>
       {visited.has('calc') && <CalculatorScreen hidden={tab !== 'calc'} calcId={calcId} setCalcId={setCalcId} />}
       <FormulasScreen hidden={tab !== 'formulas'} onOpen={openFormula} onEdit={() => setEditing(true)} onGoFavs={() => setTab('favs')} />
-      {visited.has('favs') && <FavoritesScreen hidden={tab !== 'favs'} onOpenFormula={openFormula} onOpenTerm={openTerm} />}
+      {visited.has('favs') && <FavoritesScreen hidden={tab !== 'favs'} onOpenFormula={openFormula} onOpenTerm={openTerm} onQuiz={() => setTab('quiz')} />}
+      {visited.has('quiz') && <QuizScreen hidden={tab !== 'quiz'} onOpenFormula={openFormula} onOpenTerm={openTerm} />}
       {visited.has('glossary') && <GlossaryScreen hidden={tab !== 'glossary'} onOpenTerm={openTerm} onOpenFormula={openFormula} />}
       <BottomNav tab={tab} onTab={setTab} />
       {!sheet && !editing && <InstallBanner force={showInstall} onDone={() => setShowInstall(false)} />}

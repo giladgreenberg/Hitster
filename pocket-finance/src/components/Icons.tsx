@@ -80,3 +80,10 @@ export const CheckIcon = ({ size = 18, ...p }: P) => (
     <path d="M5 12.5l4.5 4.5L19 7.5" />
   </svg>
 )
+export const CardsIcon = ({ size = 28, ...p }: P) => (
+  <svg {...base(size, p)} strokeWidth={1.7}>
+    <rect x="3" y="6.5" width="13" height="15" rx="2" transform="rotate(-8 9.5 14)" />
+    <rect x="8" y="3" width="13" height="15" rx="2" fill="var(--card, #fff)" />
+    <path d="M12 9.5a2.5 2.5 0 1 1 3.2 2.4c-.5.2-.7.6-.7 1.1v.5M14.5 15.6v.1" />
+  </svg>
+)

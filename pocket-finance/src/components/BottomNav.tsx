@@ -1,12 +1,13 @@
-import { AZIcon, BookmarkIcon, CalcIcon, SigmaIcon } from './Icons'
+import { AZIcon, BookmarkIcon, CalcIcon, CardsIcon, SigmaIcon } from './Icons'
 
-export type Tab = 'calc' | 'formulas' | 'favs' | 'glossary'
+export type Tab = 'calc' | 'formulas' | 'favs' | 'quiz' | 'glossary'
 
-// מימין לשמאל: מחשבון | נוסחאות | לזכור | מילון
+// מימין לשמאל: מחשבון | נוסחאות | לזכור | חידון | מילון
 const TABS: { id: Tab; label: string }[] = [
   { id: 'calc', label: 'מחשבון' },
   { id: 'formulas', label: 'נוסחאות' },
   { id: 'favs', label: 'לזכור' },
+  { id: 'quiz', label: 'חידון' },
   { id: 'glossary', label: 'מילון' },
 ]
 
@@ -14,6 +15,7 @@ function Icon({ id, active }: { id: Tab; active: boolean }) {
   if (id === 'calc') return <CalcIcon />
   if (id === 'formulas') return <SigmaIcon />
   if (id === 'favs') return <BookmarkIcon filled={active} />
+  if (id === 'quiz') return <CardsIcon />
   return <AZIcon />
 }
 

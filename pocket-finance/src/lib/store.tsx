@@ -1,6 +1,7 @@
 // שמירת כל מצב המשתמש ב-localStorage
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { formulas, topics } from '../data/formulas'
+import type { Stat } from './quiz'
 
 export type SortMode = 'custom' | 'alpha' | 'starred'
 
@@ -15,6 +16,17 @@ export interface UserState {
   recentCalcs: string[]
   calcInputs: Record<string, Record<string, string>>
   installDismissed: boolean
+  /** תוצאות חידון לכל פריט */
+  quizStats: Record<string, Stat>
+  quizPrefs: QuizPrefs
+}
+
+export type QuizSource = 'favs' | 'formulas' | 'terms' | 'weak'
+export type QuizMode = 'cards' | 'mcq'
+export interface QuizPrefs {
+  source: QuizSource
+  mode: QuizMode
+  count: number
 }
 
 const KEY = 'pocket-finance:v1'
@@ -29,6 +41,8 @@ const initial: UserState = {
   recentCalcs: ['npv', 'irr', 'wacc', 'current_ratio'],
   calcInputs: {},
   installDismissed: false,
+  quizStats: {},
+  quizPrefs: { source: 'favs', mode: 'cards', count: 10 },
 }
 
 function load(): UserState {
@@ -52,6 +66,7 @@ interface Store {
   orderedTopics: () => string[]
   orderedFormulas: (topic: string) => string[]
   touchCalc: (id: string) => void
+  recordQuiz: (key: string, ok: boolean) => void
 }
 
 const Ctx = createContext<Store | null>(null)
@@ -94,6 +109,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           s.formulaOrder[topic],
           formulas.filter((f) => f.topic === topic).map((f) => f.id),
         ),
+      recordQuiz: (key, ok) =>
+        set((p) => {
+          const s = p.quizStats[key] ?? { ok: 0, bad: 0, lastOk: false, at: 0 }
+          return { quizStats: { ...p.quizStats, [key]: { ok: s.ok + (ok ? 1 : 0), bad: s.bad + (ok ? 0 : 1), lastOk: ok, at: Date.now() } } }
+        }),
       touchCalc: (id) => set((p) => ({ recentCalcs: [id, ...p.recentCalcs.filter((x) => x !== id)].slice(0, 8) })),
     }
   }, [s, set])

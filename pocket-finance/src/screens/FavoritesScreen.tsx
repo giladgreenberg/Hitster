@@ -57,7 +57,7 @@ function Doodles() {
   )
 }
 
-export function FavoritesScreen({ hidden, onOpenFormula, onOpenTerm }: { hidden: boolean; onOpenFormula: (id: string) => void; onOpenTerm: (id: string) => void }) {
+export function FavoritesScreen({ hidden, onOpenFormula, onOpenTerm, onQuiz }: { hidden: boolean; onOpenFormula: (id: string) => void; onOpenTerm: (id: string) => void; onQuiz: () => void }) {
   const { s, toggleFav } = useStore()
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
@@ -104,8 +104,15 @@ export function FavoritesScreen({ hidden, onOpenFormula, onOpenTerm }: { hidden:
             </button>
           ))}
         </div>
-        <div className="summary">
+        <div className="summary-row">
+          <div className="summary">
           <StarIcon size={17} filled style={{ color: 'var(--teal)', verticalAlign: -3 }} /> {total} פריטים מסומנים לזכור
+        </div>
+          {total > 0 && (
+            <button className="chip quiz-cta" onClick={onQuiz}>
+              🎯 בחנו אותי
+            </button>
+          )}
         </div>
 
         {total === 0 && (
