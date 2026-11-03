@@ -32,6 +32,18 @@ export function TermSheet({ id, onClose, onOpenTerm, onOpenFormula }: { id: stri
         <h3>הסבר</h3>
         <p><Bidi text={t.full} /></p>
       </section>
+      {t.details && t.details.length > 0 && (
+        <section className="sec">
+          <h3>בהרחבה</h3>
+          <ul className="rules">
+            {t.details.map((d, i) => (
+              <li key={i}>
+                <Bidi text={d} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {t.example && (
         <section className="sec">
           <h3>דוגמה</h3>

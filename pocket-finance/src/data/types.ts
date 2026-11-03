@@ -52,8 +52,13 @@ export interface Term {
   /** הסבר מלא */
   full: string
   example?: string
+  /** "בהרחבה": נקודות פירוט נוספות */
+  details?: string[]
   /** מזהים של מושגים קשורים */
   related?: string[]
   /** מזהה נוסחה מקושרת */
   formula?: string
 }
+
+/** שורה בקובצי המילון: [id, English, עברית, הסבר קצר, הסבר מלא, דוגמה, [מושגים קשורים], מזהה נוסחה] */
+export type TermRow = [string, string, string, string, string, string?, string[]?, string?]

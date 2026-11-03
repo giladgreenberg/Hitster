@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { formulas, formulaById, topics } from '../src/data/formulas'
-import { terms, termById } from '../src/data/glossary'
+import { termDetails, terms, termById } from '../src/data/glossary'
 import { calculators, runCalculator } from '../src/lib/calculators'
 import { irr, npv, parseList } from '../src/lib/finance'
 import katex from 'katex'
@@ -67,7 +67,7 @@ describe('IRR', () => {
 
 describe('מילון', () => {
   test('לפחות 150 מושגים, מזהים ייחודיים', () => {
-    expect(terms.length).toBeGreaterThanOrEqual(150)
+    expect(terms.length).toBeGreaterThanOrEqual(250)
     expect(new Set(terms.map((t) => t.id)).size).toBe(terms.length)
   })
   test('ממוין לפי סדר אלפביתי באנגלית', () => {
@@ -77,6 +77,10 @@ describe('מילון', () => {
   })
   test('כל קישור לנוסחה מוביל לנוסחה קיימת', () => {
     for (const t of terms) if (t.formula) expect(formulaById[t.formula], `${t.id} → ${t.formula}`).toBeDefined()
+  })
+  test('לכל מושג יש פירוט "בהרחבה", ואין פירוט יתום', () => {
+    for (const t of terms) expect(t.details?.length ?? 0, t.id).toBeGreaterThanOrEqual(2)
+    for (const id of Object.keys(termDetails)) expect(termById[id], `orphan details ${id}`).toBeDefined()
   })
   test('כל מושג קשור קיים', () => {
     for (const t of terms) for (const r of t.related ?? []) expect(termById[r], `${t.id} → ${r}`).toBeDefined()

@@ -1,9 +1,14 @@
 // קובץ הנתונים של המילון. כדי להוסיף מושג: מוסיפים שורה לרשימה.
 // מבנה: [id, English, עברית, הסבר קצר, הסבר מלא, דוגמה, [מושגים קשורים], מזהה נוסחה]
 // המילון ממוין אוטומטית לפי האנגלית, כך שאין צורך לשמור על סדר.
-import type { Term } from './types'
+import type { Term, TermRow } from './types'
+import { details1 } from './glossaryDetails1'
+import { details2 } from './glossaryDetails2'
+import { details3 } from './glossaryDetails3'
+import { details4 } from './glossaryDetails4'
+import { extraDetails, extraRows } from './glossaryExtra'
 
-type Row = [string, string, string, string, string, string?, string[]?, string?]
+type Row = TermRow
 
 const rows: Row[] = [
   // A
@@ -256,8 +261,11 @@ const rows: Row[] = [
   ['zero-coupon-bond', 'Zero-Coupon Bond', 'אג"ח ללא קופון (צרו)', 'אג"ח שלא משלמת ריבית תקופתית', 'נמכרת בניכיון ונפדית בערך הנקוב. המחיר הוא פשוט הערך הנוכחי של הקרן, והמח"מ שווה לזמן לפדיון.', 'אג"ח של 1,000 ₪ ל-5 שנים ב-6% ← מחיר 747.26 ₪.', ['bond', 'present-value', 'duration'], 'pv'],
 ]
 
-export const terms: Term[] = rows
-  .map(([id, en, he, short, full, example, related, formula]) => ({ id, en, he, short, full, example, related, formula }))
+/** "בהרחבה" לכל המושגים (מחולק לכמה קבצים לפי אותיות) */
+export const termDetails: Record<string, string[]> = { ...details1, ...details2, ...details3, ...details4, ...extraDetails }
+
+export const terms: Term[] = [...rows, ...extraRows]
+  .map(([id, en, he, short, full, example, related, formula]) => ({ id, en, he, short, full, example, related, formula, details: termDetails[id] }))
   .sort((a, b) => a.en.localeCompare(b.en, 'en', { sensitivity: 'base' }))
 
 export const termById: Record<string, Term> = Object.fromEntries(terms.map((t) => [t.id, t]))
